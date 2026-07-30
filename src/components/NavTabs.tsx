@@ -1,21 +1,28 @@
-import { LayoutGrid, CalendarClock, PlusCircle, Library, BarChart3 } from 'lucide-react';
+import { LayoutGrid, Pin, SunMedium, PlusCircle, Library, BarChart3 } from 'lucide-react';
 import type { TabKey } from '@/lib/types';
 
 interface NavTabsProps {
   active: TabKey;
   onChange: (tab: TabKey) => void;
-  dueCount: number;
+  unrememberedCount: number;
+  temporaryCount: number;
 }
 
 const TABS: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
   { key: 'flashcard', label: 'Flashcard', icon: LayoutGrid },
-  { key: 'schedule', label: 'Lịch ôn', icon: CalendarClock },
+  { key: 'unremembered', label: 'Chưa nhớ', icon: Pin },
+  { key: 'temporary', label: 'Tạm nhớ', icon: SunMedium },
   { key: 'add', label: 'Thêm từ', icon: PlusCircle },
   { key: 'list', label: 'Danh sách', icon: Library },
   { key: 'stats', label: 'Thống kê', icon: BarChart3 },
 ];
 
-export function NavTabs({ active, onChange, dueCount }: NavTabsProps) {
+export function NavTabs({
+  active,
+  onChange,
+  unrememberedCount,
+  temporaryCount,
+}: NavTabsProps) {
   return (
     <nav className="sticky top-[57px] z-20 bg-white/80 backdrop-blur-md border-b border-slate-200">
       <div className="max-w-6xl mx-auto px-2 sm:px-6">
@@ -35,11 +42,16 @@ export function NavTabs({ active, onChange, dueCount }: NavTabsProps) {
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">{t.label}</span>
-                {t.key === 'schedule' && dueCount > 0 && (
-                  <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold">
-                    {dueCount}
-                  </span>
-                )}
+                  {t.key === 'unremembered' && unrememberedCount > 0 && (
+                    <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                      {unrememberedCount}
+                    </span>
+                  )}
+                  {t.key === 'temporary' && temporaryCount > 0 && (
+                    <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                      {temporaryCount}
+                    </span>
+                  )}
                 {isActive && (
                   <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-600 rounded-full" />
                 )}

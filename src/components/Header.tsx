@@ -20,7 +20,7 @@ export function Header({ streak, totalWords, email, onSignOut }: HeaderProps) {
               Học Từ Vựng Tiếng Trung
             </h1>
             <p className="text-xs text-slate-500 hidden sm:block truncate">
-              {email || 'Flashcard thông minh · SRS'}
+              {email || 'Flashcard chuyển đổi · Chưa nhớ · Tạm nhớ'}
             </p>
           </div>
         </div>

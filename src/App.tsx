@@ -2,35 +2,41 @@ import { useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
 import { NavTabs } from '@/components/NavTabs';
 import { FlashcardTab } from '@/components/FlashcardTab';
-import { ScheduleTab } from '@/components/ScheduleTab';
+import { MemoryBucketTab } from '@/components/MemoryBucketTab';
 import { AddWordTab } from '@/components/AddWordTab';
 import { WordListTab } from '@/components/WordListTab';
 import { StatsTab } from '@/components/StatsTab';
 import { AuthScreen } from '@/components/AuthScreen';
 import { useAuth } from '@/lib/useAuth';
 import { useVocabStore } from '@/lib/useVocabStore';
-import { isDue } from '@/lib/srs';
-import type { TabKey } from '@/lib/types';
+import type { FlashcardSource, MemoryBucket, TabKey } from '@/lib/types';
 
 function App() {
   const [tab, setTab] = useState<TabKey>('flashcard');
-  const [filterDueOnly, setFilterDueOnly] = useState(false);
+  const [flashcardSource, setFlashcardSource] = useState<FlashcardSource>('all');
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const store = useVocabStore(user);
 
-  const dueCount = useMemo(() => store.vocab.filter(isDue).length, [store.vocab]);
+  const unrememberedCount = useMemo(
+    () => store.vocab.filter((item) => item.memory_bucket === 'unremembered').length,
+    [store.vocab]
+  );
+  const temporaryCount = useMemo(
+    () => store.vocab.filter((item) => item.memory_bucket === 'temporary').length,
+    [store.vocab]
+  );
 
-  const handleStartDue = () => {
-    setFilterDueOnly(true);
+  const handleStartFocusedReview = (bucket: MemoryBucket) => {
+    setFlashcardSource(bucket);
     setTab('flashcard');
   };
 
-  const handleClearDueFilter = () => setFilterDueOnly(false);
+  const handleShowAllFlashcards = () => setFlashcardSource('all');
 
   const handleSignOut = async () => {
     await signOut();
     setTab('flashcard');
-    setFilterDueOnly(false);
+    setFlashcardSource('all');
   };
 
   if (authLoading) {
@@ -71,19 +77,37 @@ function App() {
         email={user.email}
         onSignOut={handleSignOut}
       />
-      <NavTabs active={tab} onChange={setTab} dueCount={dueCount} />
+      <NavTabs
+        active={tab}
+        onChange={setTab}
+        unrememberedCount={unrememberedCount}
+        temporaryCount={temporaryCount}
+      />
 
       <main className="pb-20">
         {tab === 'flashcard' && (
           <FlashcardTab
             vocab={store.vocab}
-            onReview={store.reviewVocab}
-            filterDueOnly={filterDueOnly}
-            onClearDueFilter={handleClearDueFilter}
+            activeSource={flashcardSource}
+            onSetMemoryBucket={store.setMemoryBucket}
+            onShowAllFlashcards={handleShowAllFlashcards}
           />
         )}
-        {tab === 'schedule' && (
-          <ScheduleTab vocab={store.vocab} onStartDue={handleStartDue} />
+        {tab === 'unremembered' && (
+          <MemoryBucketTab
+            bucket="unremembered"
+            vocab={store.vocab}
+            onMove={store.setMemoryBucket}
+            onStartFocusReview={handleStartFocusedReview}
+          />
+        )}
+        {tab === 'temporary' && (
+          <MemoryBucketTab
+            bucket="temporary"
+            vocab={store.vocab}
+            onMove={store.setMemoryBucket}
+            onStartFocusReview={handleStartFocusedReview}
+          />
         )}
         {tab === 'add' && (
           <AddWordTab onAdd={store.addVocab} isDuplicate={store.findDuplicate} />

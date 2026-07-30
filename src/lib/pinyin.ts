@@ -23,7 +23,7 @@ function convertSyllable(syll: string): string {
   const tone = parseInt(m[3], 10) - 1;
 
   const priority = ['a', 'o', 'e', 'i', 'u', 'ü'];
-  let lower = base.toLowerCase();
+  const lower = base.toLowerCase();
   let idx = -1;
   for (const v of priority) {
     const i = lower.indexOf(v);

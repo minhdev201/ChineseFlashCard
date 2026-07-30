@@ -10,10 +10,10 @@ interface StatsTabProps {
 }
 
 export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProps) {
-  const mastered = vocab.filter((v) => v.srs_level >= 5).length;
-  const learning = vocab.filter((v) => v.srs_level > 0 && v.srs_level < 5).length;
-  const fresh = vocab.filter((v) => v.srs_level === 0).length;
-  const difficult = vocab.filter((v) => v.lapses >= 2).length;
+  const flashcardCount = vocab.filter((v) => v.memory_bucket === 'flashcard').length;
+  const unrememberedCount = vocab.filter((v) => v.memory_bucket === 'unremembered').length;
+  const temporaryCount = vocab.filter((v) => v.memory_bucket === 'temporary').length;
+  const difficult = unrememberedCount;
 
   // 7-day activity chart
   const last7 = useMemo(() => {
@@ -35,12 +35,11 @@ export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProp
 
   const maxActivity = Math.max(1, ...last7.map((d) => d.reviewed + d.added));
 
-  // SRS distribution
+  // Memory bucket distribution
   const dist = [
-    { label: 'Mới', count: fresh, color: 'bg-slate-400' },
-    { label: 'Đang học', count: learning, color: 'bg-amber-400' },
-    { label: 'Đã thuộc', count: vocab.filter((v) => v.srs_level >= 3 && v.srs_level < 5).length, color: 'bg-blue-400' },
-    { label: 'Ghi nhớ sâu', count: mastered, color: 'bg-emerald-400' },
+    { label: 'Flashcard', count: flashcardCount, color: 'bg-indigo-400' },
+    { label: 'Chưa nhớ', count: unrememberedCount, color: 'bg-rose-400' },
+    { label: 'Tạm nhớ', count: temporaryCount, color: 'bg-amber-400' },
   ];
   const totalDist = Math.max(1, vocab.length);
 
@@ -52,19 +51,19 @@ export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProp
       color: 'from-indigo-500 to-blue-500',
     },
     {
-      label: 'Ghi nhớ sâu',
-      value: mastered,
+      label: 'Flashcard chung',
+      value: flashcardCount,
       icon: Award,
-      color: 'from-emerald-500 to-teal-500',
+      color: 'from-indigo-500 to-cyan-500',
     },
     {
-      label: 'Đang học',
-      value: learning + fresh,
+      label: 'Tạm nhớ',
+      value: temporaryCount,
       icon: Brain,
       color: 'from-amber-500 to-orange-500',
     },
     {
-      label: 'Hay gặp khó',
+      label: 'Chưa nhớ',
       value: difficult,
       icon: AlertCircle,
       color: 'from-rose-500 to-pink-500',
@@ -112,9 +111,9 @@ export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProp
         })}
       </div>
 
-      {/* SRS distribution */}
+      {/* Memory distribution */}
       <div className="rounded-2xl bg-white border border-slate-200 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">Phân bổ theo trạng thái ghi nhớ</h3>
+        <h3 className="text-sm font-semibold text-slate-700 mb-4">Phân bổ theo hệ thống thẻ chuyển đổi</h3>
         <div className="space-y-3">
           {dist.map((d) => (
             <div key={d.label}>

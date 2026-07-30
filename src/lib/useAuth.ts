@@ -38,6 +38,15 @@ export function useAuth() {
   const signUp = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
+
+    // Nếu Supabase chưa tự tạo session (ví dụ khi cấu hình mặc định yêu cầu xác thực email),
+    // tiến hành tự động đăng nhập ngay lập tức để bỏ qua bước xác nhận email.
+    if (!data.session && data.user) {
+      const signInRes = await supabase.auth.signInWithPassword({ email, password });
+      if (signInRes.error) throw signInRes.error;
+      return signInRes.data;
+    }
+
     return data;
   }, []);
 

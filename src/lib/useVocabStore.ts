@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import type { ActivityLog, AppState, ReviewRating, Vocab } from './types';
-import { applySrs, todayStr } from './srs';
+import type { ActivityLog, AppState, MemoryBucket, Vocab } from './types';
+import { todayStr } from './srs';
 import { SEED_WORDS } from './seedData';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -31,6 +31,7 @@ async function seedIfEmpty() {
       hanviet: w.hanviet,
       meaning: w.meaning,
       example: w.example,
+      memory_bucket: 'flashcard',
     }));
     await supabase.from('vocab').insert(rows);
   }
@@ -119,6 +120,7 @@ export function useVocabStore(user: User | null) {
           hanviet: input.hanviet || null,
           meaning: input.meaning,
           example: input.example || null,
+          memory_bucket: 'flashcard',
         })
         .select('*')
         .single();
@@ -134,7 +136,7 @@ export function useVocabStore(user: User | null) {
   const updateVocab = useCallback(
     async (id: string, patch: Partial<Vocab>) => {
       const allowed: Record<string, unknown> = {};
-      for (const k of ['hanzi', 'pinyin', 'hanviet', 'meaning', 'example']) {
+      for (const k of ['hanzi', 'pinyin', 'hanviet', 'meaning', 'example', 'memory_bucket']) {
         if (k in patch) allowed[k] = patch[k as keyof Vocab];
       }
       const { error } = await supabase.from('vocab').update(allowed).eq('id', id);
@@ -153,12 +155,17 @@ export function useVocabStore(user: User | null) {
     [refresh]
   );
 
-  const reviewVocab = useCallback(
-    async (id: string, rating: ReviewRating) => {
+  const setMemoryBucket = useCallback(
+    async (id: string, memoryBucket: MemoryBucket) => {
       const card = vocab.find((c) => c.id === id);
       if (!card) return;
-      const result = applySrs(card, rating);
-      const { error } = await supabase.from('vocab').update(result).eq('id', id);
+      const { error } = await supabase
+        .from('vocab')
+        .update({
+          memory_bucket: memoryBucket,
+          last_reviewed_at: todayStr(),
+        })
+        .eq('id', id);
       if (error) throw error;
       await supabase
         .from('app_state')
@@ -185,7 +192,7 @@ export function useVocabStore(user: User | null) {
     addVocab,
     updateVocab,
     deleteVocab,
-    reviewVocab,
+    setMemoryBucket,
     findDuplicate,
   };
 }

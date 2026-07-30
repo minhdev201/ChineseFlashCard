@@ -6,6 +6,7 @@ export interface Vocab {
   hanviet: string | null;
   meaning: string;
   example: string | null;
+  memory_bucket: MemoryBucket;
   srs_level: number;
   ease_factor: number;
   interval_days: number;
@@ -16,17 +17,7 @@ export interface Vocab {
   created_at: string;
 }
 
-export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
-
-export interface SrsResult {
-  srs_level: number;
-  ease_factor: number;
-  interval_days: number;
-  repetitions: number;
-  lapses: number;
-  next_review_at: string;
-  last_reviewed_at: string;
-}
+export type MemoryBucket = 'flashcard' | 'unremembered' | 'temporary';
 
 export interface AppState {
   user_id: string;
@@ -41,4 +32,6 @@ export interface ActivityLog {
   added: number;
 }
 
-export type TabKey = 'flashcard' | 'schedule' | 'add' | 'list' | 'stats';
+export type FlashcardSource = 'all' | MemoryBucket;
+
+export type TabKey = 'flashcard' | 'unremembered' | 'temporary' | 'add' | 'list' | 'stats';

@@ -1,5 +1,9 @@
 let cachedVoice: SpeechSynthesisVoice | null = null;
 
+type AudioWindow = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
 function pickVoice(): SpeechSynthesisVoice | null {
   if (cachedVoice) return cachedVoice;
   if (typeof speechSynthesis === 'undefined') return null;
@@ -33,7 +37,7 @@ export function speak(text: string, lang = 'zh-CN') {
 
 export function playTing(success = true) {
   try {
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    const Ctx = window.AudioContext || (window as AudioWindow).webkitAudioContext;
     if (!Ctx) return;
     const ctx = new Ctx();
     const osc = ctx.createOscillator();

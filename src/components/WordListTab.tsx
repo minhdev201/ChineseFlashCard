@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Search, Volume2, Pencil, Trash2, X, AlertTriangle } from 'lucide-react';
 import type { Vocab } from '@/lib/types';
-import { masteryColor, masteryLabel } from '@/lib/srs';
+import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
 import { speak } from '@/lib/speech';
 import { hasNumericTones, numericPinyinToMarked } from '@/lib/pinyin';
 
@@ -88,11 +88,11 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
                   <span className="text-sm text-slate-700 truncate block">{w.meaning}</span>
                 </div>
                 <div className="min-w-0 hidden sm:flex items-center gap-2 justify-end">
-                  <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${masteryColor(w.srs_level)}`}>
-                    {masteryLabel(w.srs_level)}
+                  <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${memoryBucketColor(w.memory_bucket)}`}>
+                    {memoryBucketLabel(w.memory_bucket)}
                   </span>
                   <span className="text-xs text-slate-400 whitespace-nowrap">
-                    Ôn: {w.next_review_at}
+                    Cập nhật: {w.last_reviewed_at || 'Chưa ôn'}
                   </span>
                 </div>
               </div>

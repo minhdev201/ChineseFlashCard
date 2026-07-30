@@ -19,10 +19,14 @@
   ownership checks. anon can no longer read or write any data.
 
 4. Notes
-- Existing rows were cleared before this migration so the NOT NULL DEFAULT
-  auth.uid() ALTER succeeds.
+- Legacy shared rows are cleared before converting to owner-scoped tables.
 - Each new user is auto-seeded with starter vocabulary on first sign-up.
 */
+
+-- clear legacy shared rows from the pre-auth schema
+DELETE FROM activity_log;
+DELETE FROM app_state;
+DELETE FROM vocab;
 
 -- vocab: add owner column
 ALTER TABLE vocab ADD COLUMN IF NOT EXISTS user_id uuid NOT NULL DEFAULT auth.uid();
