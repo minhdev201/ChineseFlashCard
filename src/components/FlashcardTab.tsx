@@ -12,7 +12,12 @@ import {
   BookOpenCheck,
   Pin,
   SunMedium,
-  Layers3,
+  CheckCheck,
+  Keyboard,
+  Eye,
+  EyeOff,
+  CornerDownLeft,
+  HelpCircle,
 } from 'lucide-react';
 import type { FlashcardSource, MemoryBucket, Vocab } from '@/lib/types';
 import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
@@ -24,19 +29,20 @@ interface FlashcardTabProps {
   activeSource: FlashcardSource;
   onSetMemoryBucket: (id: string, bucket: MemoryBucket) => Promise<void>;
   onShowAllFlashcards: () => void;
+  onRecordReview?: () => Promise<void>;
 }
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+    [a[i], a[j]] = [a[i], a[j]];
   }
   return a;
 }
 
 const MEMORY_ACTIONS: {
-  bucket: Exclude<MemoryBucket, 'flashcard'>;
+  bucket: MemoryBucket;
   label: string;
   savedLabel: string;
   hint: string;
@@ -46,23 +52,34 @@ const MEMORY_ACTIONS: {
 }[] = [
   {
     bucket: 'unremembered',
-    label: 'Chưa nhớ',
-    savedLabel: 'Đã lưu chưa nhớ',
-    hint: 'Ôn gắt gao',
+    label: 'Chưa nhớ (1)',
+    savedLabel: 'Đã lưu Chưa nhớ',
+    hint: 'Ôn tập gắt gao',
     icon: Pin,
-    classes: 'bg-rose-500 hover:bg-rose-600 text-white',
-    savedClasses: 'bg-rose-700 text-white ring-2 ring-rose-300 shadow-inner',
+    classes: 'bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20',
+    savedClasses: 'bg-rose-700 text-white ring-2 ring-rose-300 shadow-inner font-bold',
   },
   {
     bucket: 'temporary',
-    label: 'Tạm nhớ',
-    savedLabel: 'Đã lưu tạm nhớ',
-    hint: 'Đang củng cố',
+    label: 'Tạm nhớ (2)',
+    savedLabel: 'Đã lưu Tạm nhớ',
+    hint: 'Tiếp tục củng cố',
     icon: SunMedium,
-    classes: 'bg-amber-500 hover:bg-amber-600 text-white',
-    savedClasses: 'bg-amber-700 text-white ring-2 ring-amber-300 shadow-inner',
+    classes: 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20',
+    savedClasses: 'bg-amber-700 text-white ring-2 ring-amber-300 shadow-inner font-bold',
+  },
+  {
+    bucket: 'flashcard',
+    label: 'Đã nhớ (3)',
+    savedLabel: 'Đã lưu Đã nhớ',
+    hint: 'Hoàn thành ghi nhớ',
+    icon: CheckCheck,
+    classes: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20',
+    savedClasses: 'bg-emerald-800 text-white ring-2 ring-emerald-300 shadow-inner font-bold',
   },
 ];
+
+const TONE_SYMBOLS = ['ā', 'á', 'ǎ', 'à', 'ē', 'é', 'ě', 'è', 'ī', 'í', 'ǐ', 'ì', 'ō', 'ó', 'ǒ', 'ò', 'ū', 'ú', 'ǔ', 'ù', 'ǖ', 'ǘ', 'ǚ', 'ǜ'];
 
 function sourceLabel(source: FlashcardSource): string {
   if (source === 'all') return 'Toàn bộ Flashcard';
@@ -74,6 +91,7 @@ export function FlashcardTab({
   activeSource,
   onSetMemoryBucket,
   onShowAllFlashcards,
+  onRecordReview,
 }: FlashcardTabProps) {
   const baseList = useMemo(() => {
     if (activeSource === 'all') return vocab;
@@ -83,28 +101,30 @@ export function FlashcardTab({
   const [queue, setQueue] = useState<Vocab[]>(() => baseList);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState<'none' | 'correct' | 'wrong'>('none');
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [shaking, setShaking] = useState(false);
+  const [showTianzige, setShowTianzige] = useState(true);
   const [touchedIds, setTouchedIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const prevActiveSource = useRef<FlashcardSource>(activeSource);
 
   useEffect(() => {
-    // If activeSource source tab changed, reset queue & index
     if (prevActiveSource.current !== activeSource) {
       prevActiveSource.current = activeSource;
+      setIsSwitching(true);
       setQueue(baseList);
       setIndex(0);
       setFlipped(false);
       setInput('');
       setFeedback('none');
       setTouchedIds(new Set());
+      setTimeout(() => setIsSwitching(false), 60);
       return;
     }
 
-    // Sync updated memory_bucket and word properties from vocab without resetting queue or index
     setQueue((prevQueue) => {
       if (prevQueue.length === 0) return baseList;
       return prevQueue.map((card) => {
@@ -125,36 +145,45 @@ export function FlashcardTab({
   }, [index, autoSpeak]);
 
   const goNext = useCallback(() => {
+    setIsSwitching(true);
     setFlipped(false);
     setInput('');
     setFeedback('none');
     setIndex((i) => (i + 1) % Math.max(queue.length, 1));
+    setTimeout(() => {
+      setIsSwitching(false);
+      inputRef.current?.focus();
+    }, 60);
   }, [queue.length]);
 
   const goPrev = useCallback(() => {
+    setIsSwitching(true);
     setFlipped(false);
     setInput('');
     setFeedback('none');
     setIndex((i) => (i - 1 + Math.max(queue.length, 1)) % Math.max(queue.length, 1));
+    setTimeout(() => {
+      setIsSwitching(false);
+      inputRef.current?.focus();
+    }, 60);
   }, [queue.length]);
 
   const handleCheck = useCallback(() => {
     if (!current || flipped) return;
     const val = input.trim();
     if (!val) return;
-    const normalized = normalizePinyinInput(val);
+    
+    // Bắt buộc kiểm tra gõ đúng chữ Hán
     const isCorrect =
       val === current.hanzi ||
-      normalized === current.pinyin ||
-      normalized.replace(/\s+/g, '') === current.pinyin.replace(/\s+/g, '') ||
-      pinyinMatches(val, current.pinyin) ||
-      pinyinMatches(normalized, current.pinyin);
+      val.replace(/\s+/g, '') === current.hanzi.replace(/\s+/g, '');
 
     if (isCorrect) {
       setFeedback('correct');
       playTing(true);
       setFlipped(true);
       if (autoSpeak) speak(current.hanzi);
+      onRecordReview?.();
     } else {
       setFeedback('wrong');
       playTing(false);
@@ -169,7 +198,6 @@ export function FlashcardTab({
       setTouchedIds((s) => new Set(s).add(current.id));
       const targetBucket = current.memory_bucket === bucket ? 'flashcard' : bucket;
 
-      // Cập nhật trạng thái trực tiếp trên card hiện tại mà không làm nhảy card
       setQueue((prev) =>
         prev.map((card) =>
           card.id === current.id ? { ...card, memory_bucket: targetBucket } : card
@@ -182,11 +210,13 @@ export function FlashcardTab({
   );
 
   const handleShuffle = () => {
+    setIsSwitching(true);
     setQueue((q) => shuffle(q));
     setIndex(0);
     setFlipped(false);
     setInput('');
     setFeedback('none');
+    setTimeout(() => setIsSwitching(false), 60);
   };
 
   // Keyboard shortcuts
@@ -194,6 +224,22 @@ export function FlashcardTab({
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA';
+
+      // Gán phím mũi tên Trái / Phải để chuyển thẻ Trước / Tiếp theo
+      if (e.key === 'ArrowLeft') {
+        if (!inInput || input.length === 0 || e.altKey) {
+          e.preventDefault();
+          goPrev();
+          return;
+        }
+      } else if (e.key === 'ArrowRight') {
+        if (!inInput || input.length === 0 || e.altKey) {
+          e.preventDefault();
+          goNext();
+          return;
+        }
+      }
+
       if (inInput) {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -201,36 +247,34 @@ export function FlashcardTab({
         }
         return;
       }
+
       if (e.key === ' ') {
         e.preventDefault();
         setFlipped((f) => !f);
-      } else if (e.key === 'ArrowRight') {
-        goNext();
-      } else if (e.key === 'ArrowLeft') {
-        goPrev();
       } else if (e.key === '1') handleSetBucket('unremembered');
       else if (e.key === '2') handleSetBucket('temporary');
+      else if (e.key === '3') handleSetBucket('flashcard');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleCheck, handleSetBucket, goNext, goPrev]);
+  }, [handleCheck, handleSetBucket, goNext, goPrev, input.length]);
 
   if (queue.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <div className="w-20 h-20 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
-          <Sparkles className="w-10 h-10 text-indigo-400" />
+        <div className="w-20 h-20 rounded-3xl bg-indigo-100/70 text-indigo-600 flex items-center justify-center mx-auto mb-5 shadow-inner">
+          <Sparkles className="w-10 h-10" />
         </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-2">Chưa có từ nào để học</h2>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">Chưa có từ vựng nào</h2>
         <p className="text-slate-500 mb-6">
           {activeSource === 'all'
-            ? 'Hãy thêm từ mới ở tab "Thêm từ" để bắt đầu học.'
+            ? 'Hãy chọn "Thêm từ" ở sidebar bên trái để nhập thêm từ vựng mới.'
             : `Hiện chưa có từ nào trong nhóm "${sourceLabel(activeSource)}".`}
         </p>
         {activeSource !== 'all' && (
           <button
             onClick={onShowAllFlashcards}
-            className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
+            className="px-6 py-3 rounded-2xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"
           >
             Quay về Flashcard chung
           </button>
@@ -243,267 +287,399 @@ export function FlashcardTab({
   const touchedCount = touchedIds.size;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-      {activeSource !== 'all' && (
-        <div className="rounded-2xl bg-indigo-50 border border-indigo-200 p-4 mb-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 mb-1">
-                Ôn tập chuyên sâu
-              </p>
-              <p className="text-sm text-slate-700">
-                Bạn đang luyện riêng danh sách <span className="font-semibold">{sourceLabel(activeSource)}</span>.
-              </p>
-            </div>
-            <button
-              onClick={onShowAllFlashcards}
-              className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-indigo-200 text-indigo-600 font-medium hover:bg-indigo-100 transition-colors"
+    <div className="space-y-6 animate-fade-in">
+      {/* Top Header Controls Bar */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-extrabold text-slate-800 bg-slate-100 px-3 py-1 rounded-xl">
+              {index + 1} / {queue.length}
+            </span>
+            <span
+              className={`text-xs px-3 py-1 rounded-full font-bold tracking-wide ${memoryBucketColor(
+                activeSource === 'all' ? 'flashcard' : activeSource
+              )}`}
             >
-              <BookOpenCheck className="w-4 h-4" />
-              Toàn bộ thẻ
-            </button>
+              {sourceLabel(activeSource)}
+            </span>
           </div>
-        </div>
-      )}
 
-      {/* Progress + controls row */}
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-slate-700">
-            {index + 1} / {queue.length}
-          </span>
           {touchedCount > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
-              Đã xử lý {touchedCount}
+            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
+              Đã tương tác: {touchedCount}
             </span>
           )}
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${memoryBucketColor(
-              activeSource === 'all' ? 'flashcard' : activeSource
-            )}`}
-          >
-            {sourceLabel(activeSource)}
-          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleShuffle}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
-            title="Tráo từ"
-          >
-            <Shuffle className="w-4 h-4" />
-            <span className="hidden sm:inline">Tráo</span>
-          </button>
-          <button
-            onClick={() => setAutoSpeak((s) => !s)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-              autoSpeak
-                ? 'text-indigo-600 bg-indigo-50 border-indigo-200'
-                : 'text-slate-400 bg-white border-slate-200'
-            }`}
-            title={autoSpeak ? 'Tắt tự động phát âm' : 'Bật tự động phát âm'}
-          >
-            {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            <span className="hidden sm:inline">{autoSpeak ? 'Âm bật' : 'Âm tắt'}</span>
-          </button>
-        </div>
-      </div>
 
-      {/* Progress bar */}
-      <div className="h-2 rounded-full bg-slate-200 overflow-hidden mb-6">
-        <div
-          className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 transition-all duration-300"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      {/* Flashcard */}
-      <div className="flip-scene mb-4">
-        <div
-          className={`flip-card relative w-full ${flipped ? 'is-flipped' : ''}`}
-          style={{ height: '380px' }}
-          onClick={() => setFlipped((f) => !f)}
-        >
-          {/* Front face */}
-          <div className="flip-face absolute inset-0 rounded-3xl bg-white border border-slate-200 shadow-xl flex flex-col items-center justify-center p-6 cursor-pointer">
-            <div className="absolute top-4 right-4">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  speakCurrent();
-                }}
-                className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                title="Nghe lại"
-              >
-                <Volume2 className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="absolute top-4 left-4">
-              <span
-                className={`text-xs px-2 py-1 rounded-full font-medium ${memoryBucketColor(current.memory_bucket)}`}
-              >
-                {memoryBucketLabel(current.memory_bucket)}
-              </span>
-            </div>
-            <div className="flex-1 flex items-center justify-center">
-              <span
-                className="text-7xl sm:text-8xl font-bold text-slate-900 select-none"
-                style={{ fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif' }}
-              >
-                {current.hanzi}
-              </span>
-            </div>
-            <p className="text-sm text-slate-400 mt-4">Nhấp để lật thẻ · Space để lật</p>
+        {/* Progress Bar & Actions */}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="hidden sm:block w-36 md:w-48 bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
+            <div
+              className="bg-gradient-to-r from-indigo-500 to-blue-600 h-full rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
           </div>
 
-          {/* Back face */}
-          <div className="flip-face flip-face-back absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 shadow-xl flex flex-col p-6 cursor-pointer overflow-y-auto">
-            <div className="absolute top-4 right-4">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  speakCurrent();
-                }}
-                className="p-2 rounded-lg bg-white/80 text-indigo-600 hover:bg-white transition-colors"
-                title="Nghe lại"
-              >
-                <Volume2 className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 flex flex-col justify-center text-center">
-              <span
-                className="text-5xl sm:text-6xl font-bold text-slate-900 mb-3"
-                style={{ fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif' }}
-              >
-                {current.hanzi}
-              </span>
-              <p className="text-2xl font-semibold text-indigo-600 mb-2">{current.pinyin}</p>
-              {current.hanviet && (
-                <p className="text-base text-slate-500 mb-1">
-                  <span className="font-medium">Âm Hán Việt:</span> {current.hanviet}
-                </p>
-              )}
-              <p className="text-xl font-semibold text-slate-800 mb-3">{current.meaning}</p>
-              {current.example && (
-                <p className="text-sm text-slate-500 italic bg-white/60 rounded-xl px-4 py-2">
-                  {current.example}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Pinyin typing practice */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-slate-600 mb-2">
-          Gõ Pinyin hoặc chữ Hán để kiểm tra
-        </label>
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              if (feedback === 'wrong') setFeedback('none');
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleCheck();
-              }
-            }}
-            placeholder="vd: ni3 hao3 hoặc nǐ hǎo hoặc 你好"
-            className={`flex-1 px-4 py-3 rounded-xl border bg-white text-slate-900 placeholder-slate-400 outline-none transition-all ${
-              feedback === 'correct'
-                ? 'border-emerald-400 ring-2 ring-emerald-100'
-                : feedback === 'wrong'
-                ? 'border-rose-400 ring-2 ring-rose-100'
-                : 'border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'
-            } ${shaking ? 'animate-shake' : ''}`}
-            disabled={flipped}
-          />
-          {!flipped ? (
+          <div className="flex items-center gap-2 ml-auto">
             <button
-              onClick={handleCheck}
-              className="px-5 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2"
+              onClick={() => setShowTianzige((s) => !s)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                showTianzige
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+              title="Bật/Tắt ô lưới tập viết chữ Hán"
             >
-              <Check className="w-5 h-5" />
-              <span className="hidden sm:inline">Kiểm tra</span>
+              {showTianzige ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">Ô nét chữ</span>
             </button>
-          ) : (
+
+            <button
+              onClick={handleShuffle}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm"
+              title="Tráo ngẫu nhiên danh sách"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Tráo từ</span>
+            </button>
+
+            <button
+              onClick={() => setAutoSpeak((s) => !s)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                autoSpeak
+                  ? 'text-indigo-700 bg-indigo-50 border-indigo-200'
+                  : 'text-slate-500 bg-white border-slate-200 hover:bg-slate-50'
+              }`}
+              title={autoSpeak ? 'Tắt tự động phát âm' : 'Bật tự động phát âm khi lật'}
+            >
+              {autoSpeak ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span>{autoSpeak ? 'Tự phát âm' : 'Âm tắt'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN WORKSPACE GRID: Left Flashcard / Right Interactive Flashcard Input */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT FLASHCARD VIEW COLUMN */}
+        <div className="lg:col-span-6 flex flex-col space-y-4">
+          <div className="flip-scene w-full">
+            <div
+              className={`flip-card relative w-full ${flipped ? 'is-flipped' : ''} ${
+                isSwitching ? 'no-transition' : ''
+              }`}
+              style={{ minHeight: '380px' }}
+              onClick={() => setFlipped((f) => !f)}
+            >
+              {/* Front Face */}
+              <div className="flip-face absolute inset-0 rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 cursor-pointer hover:border-indigo-300 transition-colors">
+                <div className="w-full flex items-center justify-between">
+                  <span
+                    className={`text-xs px-2.5 py-1 rounded-full font-bold ${memoryBucketColor(
+                      current.memory_bucket
+                    )}`}
+                  >
+                    {memoryBucketLabel(current.memory_bucket)}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speakCurrent();
+                    }}
+                    className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm"
+                    title="Phát âm chữ Hán"
+                  >
+                    <Volume2 className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Main Hanzi visual display inside stroke grid box */}
+                <div className="flex-1 flex flex-col items-center justify-center my-4 w-full">
+                  <div
+                    className={`relative flex items-center justify-center p-6 rounded-2xl transition-all w-full max-w-[460px] ${
+                      showTianzige
+                        ? 'bg-amber-50/50 border-2 border-dashed border-red-300/80 shadow-inner'
+                        : ''
+                    }`}
+                    style={{ minWidth: '280px', minHeight: '220px' }}
+                  >
+                    {showTianzige && (
+                      <div className="absolute inset-0 pointer-events-none opacity-30 flex items-center justify-center">
+                        <div className="w-full h-[1px] bg-red-400"></div>
+                        <div className="h-full w-[1px] bg-red-400 absolute"></div>
+                        <div className="w-full h-full border border-red-400 absolute"></div>
+                      </div>
+                    )}
+                    <span
+                      className="text-6xl sm:text-7xl font-black text-slate-900 select-none tracking-wide z-10 text-center"
+                      style={{
+                        fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                      }}
+                    >
+                      {current.hanzi}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 text-xs font-semibold text-slate-400">
+                  <RotateCcw className="w-3.5 h-3.5" /> Nhấp hoặc gõ Space để lật mặt thẻ
+                </div>
+              </div>
+
+              {/* Back Face */}
+              <div className="flip-face flip-face-back absolute inset-0 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white shadow-2xl flex flex-col p-6 cursor-pointer overflow-y-auto justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                    Đáp án chi tiết
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speakCurrent();
+                    }}
+                    className="p-2.5 rounded-2xl bg-indigo-600/40 text-indigo-200 hover:bg-indigo-600 transition-colors"
+                    title="Phát âm"
+                  >
+                    <Volume2 className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="my-auto text-center py-4 space-y-3">
+                  <span
+                    className="text-5xl sm:text-6xl font-bold text-white block"
+                    style={{
+                      fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                    }}
+                  >
+                    {current.hanzi}
+                  </span>
+                  <p className="text-3xl font-extrabold text-indigo-300 tracking-wider">
+                    {current.pinyin}
+                  </p>
+                  {current.hanviet && (
+                    <p className="text-sm text-slate-300 font-medium">
+                      Âm Hán-Việt: <span className="text-amber-300 font-bold">{current.hanviet}</span>
+                    </p>
+                  )}
+                  <p className="text-2xl font-bold text-emerald-300">{current.meaning}</p>
+                  {current.example && (
+                    <div className="bg-slate-800/80 rounded-2xl p-3 text-sm text-slate-300 border border-slate-700/60 italic">
+                      "{current.example}"
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-center text-xs text-slate-400 font-medium">
+                  Nhấn Space để lật lại thẻ
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Memory Rating Buttons */}
+          <div className="grid grid-cols-3 gap-2">
+            {MEMORY_ACTIONS.map((action) => {
+              const Icon = action.icon;
+              const isSaved = current.memory_bucket === action.bucket;
+              return (
+                <button
+                  key={action.bucket}
+                  onClick={() => handleSetBucket(action.bucket)}
+                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl font-semibold transition-all text-center ${
+                    isSaved ? action.savedClasses : action.classes
+                  } hover:scale-[1.02] active:scale-95`}
+                >
+                  <div className="flex items-center gap-1">
+                    {isSaved ? <Check className="w-4 h-4 shrink-0" /> : <Icon className="w-4 h-4 shrink-0" />}
+                    <span className="text-xs sm:text-sm font-bold truncate">{isSaved ? action.savedLabel : action.label}</span>
+                  </div>
+                  <span className="text-[10px] opacity-90 font-normal mt-0.5 truncate hidden sm:block">
+                    {isSaved ? 'Nhấn để bỏ' : action.hint}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Card Prev/Next Nav Controls */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              onClick={goPrev}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors shadow-sm text-sm"
+              title="Phím mũi tên Trái (←)"
+            >
+              <ChevronLeft className="w-4 h-4" /> Thẻ trước (←)
+            </button>
+            <button
+              onClick={() => setFlipped((f) => !f)}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold hover:bg-indigo-100 transition-colors text-sm"
+            >
+              <RotateCcw className="w-4 h-4" /> Lật thẻ
+            </button>
             <button
               onClick={goNext}
-              className="px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors shadow-sm text-sm"
+              title="Phím mũi tên Phải (→)"
             >
-              <Check className="w-5 h-5" />
-              <span className="hidden sm:inline">Thẻ tiếp theo</span>
+              Tiếp theo (→) <ChevronRight className="w-4 h-4" />
             </button>
-          )}
+          </div>
         </div>
-        {feedback === 'correct' && (
-          <p className="mt-2 text-sm font-medium text-emerald-600 animate-pop flex items-center gap-1">
-            <Check className="w-4 h-4" /> Chính xác!
-          </p>
-        )}
-        {feedback === 'wrong' && (
-          <p className="mt-2 text-sm font-medium text-rose-600 animate-pop flex items-center gap-1">
-            <X className="w-4 h-4" /> Chưa chính xác! Thử lại hoặc lật thẻ để xem đáp án.
-          </p>
-        )}
-      </div>
 
-      {/* Memory bucket buttons */}
-      <div className="grid grid-cols-2 gap-3 mb-2">
-        {MEMORY_ACTIONS.map((action) => {
-          const Icon = action.icon;
-          const isSaved = current.memory_bucket === action.bucket;
-          return (
-            <button
-              key={action.bucket}
-              onClick={() => handleSetBucket(action.bucket)}
-              className={`flex flex-col items-center py-3 rounded-xl font-semibold transition-all ${
-                isSaved ? action.savedClasses : action.classes
-              } hover:scale-[1.02] active:scale-95`}
-            >
-              <div className="flex items-center gap-1.5 mb-1">
-                {isSaved ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
-                <span className="text-sm">{isSaved ? action.savedLabel : action.label}</span>
-              </div>
-              <span className="text-[10px] opacity-80 hidden sm:block">
-                {isSaved ? 'Nhấn để bỏ chọn' : action.hint}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-xs text-slate-400 mb-4">
-        Phím tắt: <span className="font-semibold">1</span> Chưa nhớ, <span className="font-semibold">2</span> Tạm nhớ.
-      </p>
-
-      {/* Nav arrows */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={goPrev}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors text-sm"
-        >
-          <ChevronLeft className="w-4 h-4" /> Trước
-        </button>
-        <div className="flex gap-1.5">
-          <button
-            onClick={() => setFlipped((f) => !f)}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors text-sm"
+        {/* RIGHT INTERACTIVE FLASHCARD INPUT COLUMN (Identical Flashcard styling with Input) */}
+        <div className="lg:col-span-6 flex flex-col space-y-4">
+          <div
+            className={`relative w-full rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 transition-all ${
+              feedback === 'correct'
+                ? 'border-emerald-400 ring-4 ring-emerald-100'
+                : feedback === 'wrong'
+                ? 'border-rose-400 ring-4 ring-rose-100'
+                : 'hover:border-indigo-300'
+            } ${shaking ? 'animate-shake' : ''}`}
+            style={{ minHeight: '380px' }}
           >
-            <RotateCcw className="w-4 h-4" /> Lật
-          </button>
+            {/* Header row inside interactive card */}
+            <div className="w-full flex items-center justify-between">
+              <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5">
+                <Keyboard className="w-3.5 h-3.5" /> Tập gõ Chữ Hán
+              </span>
+
+              {input && (
+                <button
+                  onClick={() => setInput('')}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full transition-colors"
+                  title="Xóa chữ"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Central Tianzige grid container with interactive Input */}
+            <div
+              className="flex-1 flex flex-col items-center justify-center my-4 w-full cursor-text"
+              onClick={() => inputRef.current?.focus()}
+            >
+              <div
+                className={`relative flex items-center justify-center p-4 sm:p-6 rounded-2xl transition-all w-full max-w-[460px] ${
+                  showTianzige
+                    ? 'bg-amber-50/50 border-2 border-dashed border-red-300/80 shadow-inner'
+                    : 'bg-slate-50 border border-slate-200'
+                }`}
+                style={{ minWidth: '280px', minHeight: '220px' }}
+              >
+                {showTianzige && (
+                  <div className="absolute inset-0 pointer-events-none opacity-30 flex items-center justify-center">
+                    <div className="w-full h-[1px] bg-red-400"></div>
+                    <div className="h-full w-[1px] bg-red-400 absolute"></div>
+                    <div className="w-full h-full border border-red-400 absolute"></div>
+                  </div>
+                )}
+
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    if (feedback === 'wrong') setFeedback('none');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleCheck();
+                    }
+                  }}
+                  style={{
+                    fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                  }}
+                  className="w-full text-center text-6xl sm:text-7xl font-bold text-slate-900 placeholder:text-red-200/80 bg-transparent border-none outline-none tracking-wider px-2 z-10"
+                  disabled={flipped}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Bottom Footer inside interactive card */}
+            <div className="w-full">
+              {!flipped ? (
+                <button
+                  onClick={handleCheck}
+                  disabled={!input.trim()}
+                  className={`w-full py-3.5 px-5 rounded-2xl text-white font-extrabold text-base transition-all flex items-center justify-center gap-2 shadow-md ${
+                    input.trim()
+                      ? 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 shadow-indigo-600/30 cursor-pointer active:scale-[0.99]'
+                      : 'bg-slate-300 cursor-not-allowed shadow-none'
+                  }`}
+                >
+                  <Check className="w-5 h-5" />
+                  <span>Kiểm tra chữ Hán</span>
+                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-mono hidden sm:inline">
+                    Enter ↵
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={goNext}
+                  className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-base shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                >
+                  <Check className="w-5 h-5" />
+                  <span>Chính xác! Thẻ tiếp theo</span>
+                  <span className="flex items-center gap-1 text-xs bg-white/20 px-2 py-0.5 rounded font-mono">
+                    <CornerDownLeft className="w-3 h-3" /> Enter
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Feedback states & hotkeys footer */}
+          <div className="space-y-3">
+            {feedback === 'correct' && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 animate-pop flex items-start gap-3 shadow-sm">
+                <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-sm">
+                  ✓
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-emerald-800">Chính xác xuất sắc!</h4>
+                  <p className="text-xs text-emerald-700 mt-0.5">
+                    Chữ Hán: <span className="font-extrabold">{current.hanzi}</span> · Pinyin:{' '}
+                    <span className="font-extrabold">{current.pinyin}</span>
+                    {current.meaning && ` · Nghĩa: ${current.meaning}`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {feedback === 'wrong' && (
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 animate-pop flex items-start gap-3 shadow-sm">
+                <div className="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-sm">
+                  ✕
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-sm text-rose-800">Chưa chính xác!</h4>
+                  <p className="text-xs text-rose-700 mt-0.5">
+                    Vui lòng gõ chữ Hán <span className="font-extrabold">"{current.hanzi}"</span>. Nhấp <span className="font-bold">Lật thẻ</span> để xem chi tiết.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="px-3 py-2 rounded-xl bg-slate-100/80 border border-slate-200/60 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+              <div className="flex items-center gap-1.5">
+                <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Gõ chữ Hán trực tiếp trong ô nét chữ Tianzige.</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-slate-500">
+                <span className="bg-white px-1.5 py-0.5 rounded border">←</span> Trước
+                <span className="bg-white px-1.5 py-0.5 rounded border">→</span> Tiếp
+                <span className="bg-white px-1.5 py-0.5 rounded border">1</span> Chưa nhớ
+                <span className="bg-white px-1.5 py-0.5 rounded border">2</span> Tạm nhớ
+                <span className="bg-white px-1.5 py-0.5 rounded border">3</span> Đã nhớ
+              </div>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={goNext}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors text-sm"
-        >
-          Tiếp <ChevronRight className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );

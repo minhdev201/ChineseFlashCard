@@ -1,4 +1,4 @@
-import { ArrowLeftRight, BookOpenCheck, Sparkles, Trash2, Volume2 } from 'lucide-react';
+import { ArrowLeftRight, BookOpenCheck, Sparkles, Trash2, Volume2, CheckCheck } from 'lucide-react';
 import type { MemoryBucket, Vocab } from '@/lib/types';
 import {
   memoryBucketColor,
@@ -97,6 +97,15 @@ export function MemoryBucketTab({
               </div>
 
               <div className="flex flex-wrap gap-2 mt-4">
+                <button
+                  onClick={() => onMove(word.id, 'flashcard')}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-600/20"
+                  title="Đánh dấu đã nhớ hết và đưa từ ra khỏi danh sách ôn tập"
+                >
+                  <CheckCheck className="w-4 h-4" />
+                  Đã nhớ
+                </button>
+
                 {isUnremembered ? (
                   <button
                     onClick={() => onMove(word.id, 'temporary')}
@@ -108,20 +117,12 @@ export function MemoryBucketTab({
                 ) : (
                   <button
                     onClick={() => onMove(word.id, 'unremembered')}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500 text-white font-semibold hover:bg-rose-600 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 font-semibold hover:bg-rose-100 transition-colors"
                   >
                     <ArrowLeftRight className="w-4 h-4" />
                     Chuyển về Chưa nhớ
                   </button>
                 )}
-
-                <button
-                  onClick={() => onMove(word.id, 'flashcard')}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  {isUnremembered ? 'Xóa khỏi danh sách chưa nhớ' : 'Xóa'}
-                </button>
               </div>
             </div>
           ))}

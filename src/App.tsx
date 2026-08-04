@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Header } from '@/components/Header';
-import { NavTabs } from '@/components/NavTabs';
+import { Sidebar } from '@/components/Sidebar';
 import { FlashcardTab } from '@/components/FlashcardTab';
 import { MemoryBucketTab } from '@/components/MemoryBucketTab';
 import { AddWordTab } from '@/components/AddWordTab';
@@ -43,7 +42,7 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center animate-pulse">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center animate-pulse shadow-lg">
             <span className="text-white text-xl font-bold">汉</span>
           </div>
           <p className="text-slate-400 text-sm">Đang tải...</p>
@@ -60,7 +59,7 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center animate-pulse">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center animate-pulse shadow-lg">
             <span className="text-white text-xl font-bold">汉</span>
           </div>
           <p className="text-slate-400 text-sm">Đang tải từ vựng...</p>
@@ -70,27 +69,28 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header
-        streak={store.streak}
-        totalWords={store.vocab.length}
-        email={user.email}
-        onSignOut={handleSignOut}
-      />
-      <NavTabs
+    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row">
+      <Sidebar
         active={tab}
         onChange={setTab}
         unrememberedCount={unrememberedCount}
         temporaryCount={temporaryCount}
+        streak={store.streak}
+        totalWords={store.vocab.length}
+        email={user.email}
+        onSignOut={handleSignOut}
+        activeSource={flashcardSource}
+        onShowAllFlashcards={handleShowAllFlashcards}
       />
 
-      <main className="pb-20">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto max-w-7xl">
         {tab === 'flashcard' && (
           <FlashcardTab
             vocab={store.vocab}
             activeSource={flashcardSource}
             onSetMemoryBucket={store.setMemoryBucket}
             onShowAllFlashcards={handleShowAllFlashcards}
+            onRecordReview={store.recordReview}
           />
         )}
         {tab === 'unremembered' && (
