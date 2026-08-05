@@ -36,7 +36,9 @@ function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[i], a[j]];
+    const temp = a[i];
+    a[i] = a[j];
+    a[j] = temp;
   }
   return a;
 }
@@ -211,12 +213,15 @@ export function FlashcardTab({
 
   const handleShuffle = () => {
     setIsSwitching(true);
-    setQueue((q) => shuffle(q));
+    setQueue((q) => shuffle(q.length > 0 ? q : baseList));
     setIndex(0);
     setFlipped(false);
     setInput('');
     setFeedback('none');
-    setTimeout(() => setIsSwitching(false), 60);
+    setTimeout(() => {
+      setIsSwitching(false);
+      inputRef.current?.focus();
+    }, 60);
   };
 
   // Keyboard shortcuts

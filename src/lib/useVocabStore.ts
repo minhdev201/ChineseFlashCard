@@ -81,6 +81,7 @@ export function useVocabStore(user: User | null) {
   const [activity, setActivity] = useState<ActivityLog[]>([]);
   const [totalReviews, setTotalReviews] = useState(0);
   const seeded = useRef(false);
+  const initialLoaded = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -95,25 +96,33 @@ export function useVocabStore(user: User | null) {
     setActivity((act as ActivityLog[]) || []);
   }, [user]);
 
+  const userId = user?.id;
+
   useEffect(() => {
-    if (!user) return;
+    if (!userId) {
+      initialLoaded.current = false;
+      return;
+    }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!initialLoaded.current) {
+        setLoading(true);
+      }
       try {
-        await ensureAppState(user.id);
+        await ensureAppState(userId);
         if (!seeded.current) {
-          await seedIfEmpty(user.id);
+          await seedIfEmpty(userId);
           seeded.current = true;
         }
         if (cancelled) return;
         await refresh();
+        initialLoaded.current = true;
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [user, refresh]);
+  }, [userId, refresh]);
 
   const addVocab = useCallback(
     async (input: Pick<Vocab, 'hanzi' | 'pinyin' | 'hanviet' | 'meaning' | 'example'>) => {
