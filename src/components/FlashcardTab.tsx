@@ -372,7 +372,11 @@ export function FlashcardTab({
               onClick={() => setFlipped((f) => !f)}
             >
               {/* Front Face */}
-              <div className="flip-face absolute inset-0 rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 cursor-pointer hover:border-indigo-300 transition-colors">
+              <div
+                className={`flip-face absolute inset-0 rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 cursor-pointer hover:border-indigo-300 transition-all duration-300 ${
+                  flipped ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
+                }`}
+              >
                 <div className="w-full flex items-center justify-between">
                   <span
                     className={`text-xs px-2.5 py-1 rounded-full font-bold ${memoryBucketColor(
@@ -427,7 +431,11 @@ export function FlashcardTab({
               </div>
 
               {/* Back Face */}
-              <div className="flip-face flip-face-back absolute inset-0 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white shadow-2xl flex flex-col p-6 cursor-pointer overflow-y-auto justify-between">
+              <div
+                className={`flip-face flip-face-back absolute inset-0 rounded-3xl bg-slate-900 border border-indigo-500/30 text-white shadow-2xl flex flex-col p-6 cursor-pointer overflow-y-auto justify-between transition-all duration-300 ${
+                  flipped ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
                     Đáp án chi tiết

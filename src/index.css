@@ -21,9 +21,11 @@ body {
 /* 3D flip card */
 .flip-scene {
   perspective: 1600px;
+  -webkit-perspective: 1600px;
 }
 .flip-card {
   transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
   transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 .flip-card.no-transition {
@@ -31,13 +33,19 @@ body {
 }
 .flip-card.is-flipped {
   transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
 }
 .flip-face {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  transform: rotateY(0deg) translateZ(1px);
+  -webkit-transform: rotateY(0deg) translateZ(1px);
 }
 .flip-face-back {
-  transform: rotateY(180deg);
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  transform: rotateY(180deg) translateZ(1px);
+  -webkit-transform: rotateY(180deg) translateZ(1px);
 }
 
 /* Shake animation */
