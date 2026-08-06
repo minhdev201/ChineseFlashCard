@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import type { FlashcardSource, MemoryBucket, Vocab } from '@/lib/types';
 import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
-import { pinyinMatches, normalizePinyinInput } from '@/lib/pinyin';
 import { playTing, speak } from '@/lib/speech';
 
 interface FlashcardTabProps {
@@ -52,34 +51,34 @@ const MEMORY_ACTIONS: {
   classes: string;
   savedClasses: string;
 }[] = [
-  {
-    bucket: 'unremembered',
-    label: 'Chưa nhớ (1)',
-    savedLabel: 'Đã lưu Chưa nhớ',
-    hint: 'Ôn tập gắt gao',
-    icon: Pin,
-    classes: 'bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20',
-    savedClasses: 'bg-rose-700 text-white ring-2 ring-rose-300 shadow-inner font-bold',
-  },
-  {
-    bucket: 'temporary',
-    label: 'Tạm nhớ (2)',
-    savedLabel: 'Đã lưu Tạm nhớ',
-    hint: 'Tiếp tục củng cố',
-    icon: SunMedium,
-    classes: 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20',
-    savedClasses: 'bg-amber-700 text-white ring-2 ring-amber-300 shadow-inner font-bold',
-  },
-  {
-    bucket: 'flashcard',
-    label: 'Đã nhớ (3)',
-    savedLabel: 'Đã lưu Đã nhớ',
-    hint: 'Hoàn thành ghi nhớ',
-    icon: CheckCheck,
-    classes: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20',
-    savedClasses: 'bg-emerald-800 text-white ring-2 ring-emerald-300 shadow-inner font-bold',
-  },
-];
+    {
+      bucket: 'unremembered',
+      label: 'Chưa nhớ (1)',
+      savedLabel: 'Đã lưu Chưa nhớ',
+      hint: 'Ôn tập gắt gao',
+      icon: Pin,
+      classes: 'bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20',
+      savedClasses: 'bg-rose-700 text-white ring-2 ring-rose-300 shadow-inner font-bold',
+    },
+    {
+      bucket: 'temporary',
+      label: 'Tạm nhớ (2)',
+      savedLabel: 'Đã lưu Tạm nhớ',
+      hint: 'Tiếp tục củng cố',
+      icon: SunMedium,
+      classes: 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20',
+      savedClasses: 'bg-amber-700 text-white ring-2 ring-amber-300 shadow-inner font-bold',
+    },
+    {
+      bucket: 'flashcard',
+      label: 'Đã nhớ (3)',
+      savedLabel: 'Đã lưu Đã nhớ',
+      hint: 'Hoàn thành ghi nhớ',
+      icon: CheckCheck,
+      classes: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20',
+      savedClasses: 'bg-emerald-800 text-white ring-2 ring-emerald-300 shadow-inner font-bold',
+    },
+  ];
 
 const TONE_SYMBOLS = ['ā', 'á', 'ǎ', 'à', 'ē', 'é', 'ě', 'è', 'ī', 'í', 'ǐ', 'ì', 'ō', 'ó', 'ǒ', 'ò', 'ū', 'ú', 'ǔ', 'ù', 'ǖ', 'ǘ', 'ǚ', 'ǜ'];
 
@@ -174,7 +173,7 @@ export function FlashcardTab({
     if (!current || flipped) return;
     const val = input.trim();
     if (!val) return;
-    
+
     // Bắt buộc kiểm tra gõ đúng chữ Hán
     const isCorrect =
       val === current.hanzi ||
@@ -328,11 +327,10 @@ export function FlashcardTab({
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => setShowTianzige((s) => !s)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                showTianzige
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${showTianzige
                   ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
+                }`}
               title="Bật/Tắt ô lưới tập viết chữ Hán"
             >
               {showTianzige ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -350,11 +348,10 @@ export function FlashcardTab({
 
             <button
               onClick={() => setAutoSpeak((s) => !s)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                autoSpeak
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${autoSpeak
                   ? 'text-indigo-700 bg-indigo-50 border-indigo-200'
                   : 'text-slate-500 bg-white border-slate-200 hover:bg-slate-50'
-              }`}
+                }`}
               title={autoSpeak ? 'Tắt tự động phát âm' : 'Bật tự động phát âm khi lật'}
             >
               {autoSpeak ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
@@ -370,17 +367,15 @@ export function FlashcardTab({
         <div className="lg:col-span-6 flex flex-col space-y-4">
           <div className="flip-scene w-full">
             <div
-              className={`flip-card relative w-full ${flipped ? 'is-flipped' : ''} ${
-                isSwitching ? 'no-transition' : ''
-              }`}
+              className={`flip-card relative w-full ${flipped ? 'is-flipped' : ''} ${isSwitching ? 'no-transition' : ''
+                }`}
               style={{ minHeight: '380px' }}
               onClick={() => setFlipped((f) => !f)}
             >
               {/* Front Face */}
               <div
-                className={`flip-face absolute inset-0 rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 cursor-pointer hover:border-indigo-300 transition-all duration-300 ${
-                  flipped ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
-                }`}
+                className={`flip-face absolute inset-0 rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 cursor-pointer hover:border-indigo-300 transition-all duration-300 ${flipped ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
+                  }`}
               >
                 <div className="w-full flex items-center justify-between">
                   <span
@@ -405,11 +400,10 @@ export function FlashcardTab({
                 {/* Main Hanzi visual display inside stroke grid box */}
                 <div className="flex-1 flex flex-col items-center justify-center my-4 w-full">
                   <div
-                    className={`relative flex items-center justify-center p-6 rounded-2xl transition-all w-full max-w-[460px] ${
-                      showTianzige
+                    className={`relative flex items-center justify-center p-6 rounded-2xl transition-all w-full max-w-[460px] ${showTianzige
                         ? 'bg-amber-50/50 border-2 border-dashed border-red-300/80 shadow-inner'
                         : ''
-                    }`}
+                      }`}
                     style={{ minWidth: '280px', minHeight: '220px' }}
                   >
                     {showTianzige && (
@@ -437,9 +431,8 @@ export function FlashcardTab({
 
               {/* Back Face */}
               <div
-                className={`flip-face flip-face-back absolute inset-0 rounded-3xl bg-slate-900 border border-indigo-500/30 text-white shadow-2xl flex flex-col p-6 cursor-pointer overflow-y-auto justify-between transition-all duration-300 ${
-                  flipped ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                }`}
+                className={`flip-face flip-face-back absolute inset-0 rounded-3xl bg-slate-900 border border-indigo-500/30 text-white shadow-2xl flex flex-col p-6 cursor-pointer overflow-y-auto justify-between transition-all duration-300 ${flipped ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
@@ -498,9 +491,8 @@ export function FlashcardTab({
                 <button
                   key={action.bucket}
                   onClick={() => handleSetBucket(action.bucket)}
-                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl font-semibold transition-all text-center ${
-                    isSaved ? action.savedClasses : action.classes
-                  } hover:scale-[1.02] active:scale-95`}
+                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl font-semibold transition-all text-center ${isSaved ? action.savedClasses : action.classes
+                    } hover:scale-[1.02] active:scale-95`}
                 >
                   <div className="flex items-center gap-1">
                     {isSaved ? <Check className="w-4 h-4 shrink-0" /> : <Icon className="w-4 h-4 shrink-0" />}
@@ -542,13 +534,12 @@ export function FlashcardTab({
         {/* RIGHT INTERACTIVE FLASHCARD INPUT COLUMN (Identical Flashcard styling with Input) */}
         <div className="lg:col-span-6 flex flex-col space-y-4">
           <div
-            className={`relative w-full rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 transition-all ${
-              feedback === 'correct'
+            className={`relative w-full rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 transition-all ${feedback === 'correct'
                 ? 'border-emerald-400 ring-4 ring-emerald-100'
                 : feedback === 'wrong'
-                ? 'border-rose-400 ring-4 ring-rose-100'
-                : 'hover:border-indigo-300'
-            } ${shaking ? 'animate-shake' : ''}`}
+                  ? 'border-rose-400 ring-4 ring-rose-100'
+                  : 'hover:border-indigo-300'
+              } ${shaking ? 'animate-shake' : ''}`}
             style={{ minHeight: '380px' }}
           >
             {/* Header row inside interactive card */}
@@ -574,11 +565,10 @@ export function FlashcardTab({
               onClick={() => inputRef.current?.focus()}
             >
               <div
-                className={`relative flex items-center justify-center p-4 sm:p-6 rounded-2xl transition-all w-full max-w-[460px] ${
-                  showTianzige
+                className={`relative flex items-center justify-center p-4 sm:p-6 rounded-2xl transition-all w-full max-w-[460px] ${showTianzige
                     ? 'bg-amber-50/50 border-2 border-dashed border-red-300/80 shadow-inner'
                     : 'bg-slate-50 border border-slate-200'
-                }`}
+                  }`}
                 style={{ minWidth: '280px', minHeight: '220px' }}
               >
                 {showTianzige && (
@@ -619,11 +609,10 @@ export function FlashcardTab({
                 <button
                   onClick={handleCheck}
                   disabled={!input.trim()}
-                  className={`w-full py-3.5 px-5 rounded-2xl text-white font-extrabold text-base transition-all flex items-center justify-center gap-2 shadow-md ${
-                    input.trim()
+                  className={`w-full py-3.5 px-5 rounded-2xl text-white font-extrabold text-base transition-all flex items-center justify-center gap-2 shadow-md ${input.trim()
                       ? 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 shadow-indigo-600/30 cursor-pointer active:scale-[0.99]'
                       : 'bg-slate-300 cursor-not-allowed shadow-none'
-                  }`}
+                    }`}
                 >
                   <Check className="w-5 h-5" />
                   <span>Kiểm tra chữ Hán</span>
