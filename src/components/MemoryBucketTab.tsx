@@ -91,8 +91,6 @@ export function MemoryBucketTab({
                     </span>
                   </div>
                   <p className="text-sm text-slate-700 mb-1">{word.meaning}</p>
-                  {word.hanviet && <p className="text-xs text-slate-500">Âm Hán Việt: {word.hanviet}</p>}
-                  {word.example && <p className="text-xs text-slate-400 mt-2 italic">{word.example}</p>}
                 </div>
               </div>
 

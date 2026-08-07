@@ -20,7 +20,7 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
     const q = query.trim().toLowerCase();
     if (!q) return vocab;
     return vocab.filter((v) =>
-      [v.hanzi, v.pinyin, v.hanviet, v.meaning]
+      [v.hanzi, v.pinyin, v.meaning]
         .filter(Boolean)
         .some((f) => f!.toLowerCase().includes(q))
     );
@@ -176,9 +176,7 @@ function EditModal({
 }) {
   const [hanzi, setHanzi] = useState(vocab.hanzi);
   const [pinyin, setPinyin] = useState(vocab.pinyin);
-  const [hanviet, setHanviet] = useState(vocab.hanviet || '');
   const [meaning, setMeaning] = useState(vocab.meaning);
-  const [example, setExample] = useState(vocab.example || '');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
@@ -206,26 +204,11 @@ function EditModal({
               className="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </EditField>
-          <EditField label="Âm Hán Việt">
-            <input
-              value={hanviet}
-              onChange={(e) => setHanviet(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-            />
-          </EditField>
           <EditField label="Nghĩa tiếng Việt">
             <input
               value={meaning}
               onChange={(e) => setMeaning(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-            />
-          </EditField>
-          <EditField label="Ví dụ / Ghi chú">
-            <textarea
-              value={example}
-              onChange={(e) => setExample(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none"
             />
           </EditField>
         </div>
@@ -241,9 +224,7 @@ function EditModal({
               onSave({
                 hanzi: hanzi.trim(),
                 pinyin: pinyin.trim(),
-                hanviet: hanviet.trim() || null,
                 meaning: meaning.trim(),
-                example: example.trim() || null,
               })
             }
             className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"

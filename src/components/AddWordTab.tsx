@@ -7,9 +7,7 @@ interface AddWordTabProps {
   onAdd: (input: {
     hanzi: string;
     pinyin: string;
-    hanviet: string | null;
     meaning: string;
-    example: string | null;
   }) => Promise<unknown>;
   isDuplicate: (hanzi: string) => Vocab | undefined;
 }
@@ -17,9 +15,7 @@ interface AddWordTabProps {
 export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
   const [hanzi, setHanzi] = useState('');
   const [pinyin, setPinyin] = useState('');
-  const [hanviet, setHanviet] = useState('');
   const [meaning, setMeaning] = useState('');
-  const [example, setExample] = useState('');
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [dup, setDup] = useState(false);
@@ -39,9 +35,7 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
   const reset = () => {
     setHanzi('');
     setPinyin('');
-    setHanviet('');
     setMeaning('');
-    setExample('');
     setSuccess(false);
     setError('');
     setDup(false);
@@ -80,9 +74,7 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
       await onAdd({
         hanzi: h,
         pinyin: finalPinyin,
-        hanviet: hanviet.trim() || null,
         meaning: m,
-        example: example.trim() || null,
       });
       setSuccess(true);
       setTimeout(() => {
@@ -99,10 +91,7 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
       <div className="mb-5">
-        <h2 className="text-xl font-bold text-slate-900 mb-1">Thêm từ thủ công</h2>
-        <p className="text-sm text-slate-500">
-          Tự gõ từng ký tự giúp bạn ghi nhớ từ vựng tốt hơn. Gõ Pinyin dạng số (vd: <code className="px-1 py-0.5 rounded bg-slate-100 text-indigo-600">ni3 hao3</code>) sẽ tự chuyển thành <code className="px-1 py-0.5 rounded bg-slate-100 text-indigo-600">nǐ hǎo</code>.
-        </p>
+        <h2 className="text-xl font-bold text-slate-900 mb-1">Thêm từ</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,30 +105,18 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
               setDup(false);
               setSuccess(false);
             }}
-            placeholder="你好"
             className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-lg"
             style={{ fontFamily: '"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif' }}
             autoFocus
           />
         </Field>
 
-        <Field label="Pinyin" required hint="Gõ số để tự đổi dấu: ni3 hao3 → nǐ hǎo">
+        <Field label="Pinyin" required>
           <input
             type="text"
             value={pinyin}
             onChange={(e) => handlePinyinChange(e.target.value)}
             onBlur={handlePinyinBlur}
-            placeholder="nǐ hǎo hoặc ni3 hao3"
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-          />
-        </Field>
-
-        <Field label="Âm Hán Việt" hint="Tùy chọn">
-          <input
-            type="text"
-            value={hanviet}
-            onChange={(e) => setHanviet(e.target.value)}
-            placeholder="nỉ hảo"
             className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
           />
         </Field>
@@ -149,18 +126,7 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
             type="text"
             value={meaning}
             onChange={(e) => setMeaning(e.target.value)}
-            placeholder="Xin chào"
             className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-          />
-        </Field>
-
-        <Field label="Ví dụ mẫu / Ghi chú" hint="Tùy chọn">
-          <textarea
-            value={example}
-            onChange={(e) => setExample(e.target.value)}
-            placeholder="你好，我是小明。"
-            rows={2}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none"
           />
         </Field>
 

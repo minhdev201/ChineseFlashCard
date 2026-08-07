@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import {
   Shuffle,
   Volume2,
@@ -18,6 +18,9 @@ import {
   EyeOff,
   CornerDownLeft,
   HelpCircle,
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
+  ChevronDown,
 } from 'lucide-react';
 import type { FlashcardSource, MemoryBucket, Vocab } from '@/lib/types';
 import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
@@ -41,6 +44,14 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
+
+type SortMode = 'newest' | 'oldest' | 'random';
+
+const SORT_OPTIONS: { value: SortMode; label: string; icon: typeof Shuffle }[] = [
+  { value: 'newest', label: 'Mới nhất trước', icon: ArrowDownNarrowWide },
+  { value: 'oldest', label: 'Cũ nhất trước', icon: ArrowUpNarrowWide },
+  { value: 'random', label: 'Ngẫu nhiên', icon: Shuffle },
+];
 
 const MEMORY_ACTIONS: {
   bucket: MemoryBucket;
@@ -87,6 +98,28 @@ function sourceLabel(source: FlashcardSource): string {
   return memoryBucketLabel(source);
 }
 
+/** Returns dynamic fontSize + letterSpacing based on hanzi character count */
+function getHanziSize(text: string): { fontSize: string; letterSpacing: string } {
+  const len = text.length;
+  if (len <= 2) return { fontSize: 'clamp(3.5rem, 8vw, 4.5rem)', letterSpacing: '0.12em' };
+  if (len <= 4) return { fontSize: 'clamp(3rem, 7vw, 4rem)', letterSpacing: '0.08em' };
+  if (len <= 6) return { fontSize: 'clamp(2.25rem, 5.5vw, 3rem)', letterSpacing: '0.04em' };
+  if (len <= 8) return { fontSize: 'clamp(1.75rem, 4.5vw, 2.5rem)', letterSpacing: '0.02em' };
+  if (len <= 12) return { fontSize: 'clamp(1.5rem, 3.5vw, 2rem)', letterSpacing: '0.01em' };
+  return { fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', letterSpacing: '0em' };
+}
+
+/** Same but slightly smaller for the back face */
+function getHanziSizeBack(text: string): { fontSize: string; letterSpacing: string } {
+  const len = text.length;
+  if (len <= 2) return { fontSize: 'clamp(3rem, 7vw, 3.75rem)', letterSpacing: '0.1em' };
+  if (len <= 4) return { fontSize: 'clamp(2.5rem, 6vw, 3.25rem)', letterSpacing: '0.06em' };
+  if (len <= 6) return { fontSize: 'clamp(2rem, 5vw, 2.75rem)', letterSpacing: '0.03em' };
+  if (len <= 8) return { fontSize: 'clamp(1.5rem, 4vw, 2.25rem)', letterSpacing: '0.02em' };
+  if (len <= 12) return { fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', letterSpacing: '0.01em' };
+  return { fontSize: 'clamp(1.1rem, 2.5vw, 1.5rem)', letterSpacing: '0em' };
+}
+
 export function FlashcardTab({
   vocab,
   activeSource,
@@ -94,10 +127,20 @@ export function FlashcardTab({
   onShowAllFlashcards,
   onRecordReview,
 }: FlashcardTabProps) {
-  const baseList = useMemo(() => {
+  const filteredList = useMemo(() => {
     if (activeSource === 'all') return vocab;
     return vocab.filter((item) => item.memory_bucket === activeSource);
   }, [vocab, activeSource]);
+
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  const baseList = useMemo(() => {
+    if (sortMode === 'newest') return [...filteredList].reverse();
+    if (sortMode === 'random') return shuffle(filteredList);
+    return filteredList; // oldest = original created_at ascending
+  }, [filteredList, sortMode]);
 
   const [queue, setQueue] = useState<Vocab[]>(() => baseList);
   const [index, setIndex] = useState(0);
@@ -111,6 +154,17 @@ export function FlashcardTab({
   const [touchedIds, setTouchedIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const prevActiveSource = useRef<FlashcardSource>(activeSource);
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setSortDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (prevActiveSource.current !== activeSource) {
@@ -128,6 +182,11 @@ export function FlashcardTab({
 
     setQueue((prevQueue) => {
       if (prevQueue.length === 0) return baseList;
+      // When sortMode changes, rebuild queue from baseList
+      const prevIds = prevQueue.map((c) => c.id);
+      const baseIds = baseList.map((c) => c.id);
+      const orderChanged = prevIds.length !== baseIds.length || prevIds.some((id, i) => id !== baseIds[i]);
+      if (orderChanged) return baseList;
       return prevQueue.map((card) => {
         const fresh = vocab.find((v) => v.id === card.id);
         return fresh ? { ...card, ...fresh } : card;
@@ -210,9 +269,10 @@ export function FlashcardTab({
     [current, onSetMemoryBucket]
   );
 
-  const handleShuffle = () => {
+  const handleSortChange = (mode: SortMode) => {
+    setSortMode(mode);
+    setSortDropdownOpen(false);
     setIsSwitching(true);
-    setQueue((q) => shuffle(q.length > 0 ? q : baseList));
     setIndex(0);
     setFlipped(false);
     setInput('');
@@ -337,14 +397,51 @@ export function FlashcardTab({
               <span className="hidden sm:inline">Ô nét chữ</span>
             </button>
 
-            <button
-              onClick={handleShuffle}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm"
-              title="Tráo ngẫu nhiên danh sách"
-            >
-              <Shuffle className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Tráo từ</span>
-            </button>
+            <div className="relative" ref={sortDropdownRef}>
+              <button
+                onClick={() => setSortDropdownOpen((s) => !s)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
+                  sortDropdownOpen
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'text-slate-700 bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+                title="Chọn thứ tự hiển thị flashcard"
+              >
+                {(() => {
+                  const opt = SORT_OPTIONS.find((o) => o.value === sortMode);
+                  const Icon = opt?.icon ?? Shuffle;
+                  return <Icon className="w-3.5 h-3.5" />;
+                })()}
+                <span className="hidden sm:inline">
+                  {SORT_OPTIONS.find((o) => o.value === sortMode)?.label ?? 'Sắp xếp'}
+                </span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${sortDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {sortDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 animate-fade-in">
+                  {SORT_OPTIONS.map((opt) => {
+                    const Icon = opt.icon;
+                    const isActive = sortMode === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => handleSortChange(opt.value)}
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium transition-colors ${
+                          isActive
+                            ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
+                        <span>{opt.label}</span>
+                        {isActive && <Check className="w-3.5 h-3.5 ml-auto text-indigo-500" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             <button
               onClick={() => setAutoSpeak((s) => !s)}
@@ -414,9 +511,10 @@ export function FlashcardTab({
                       </div>
                     )}
                     <span
-                      className="text-6xl sm:text-7xl font-black text-slate-900 select-none tracking-wide z-10 text-center"
+                      className="font-black text-slate-900 select-none z-10 text-center leading-snug"
                       style={{
                         fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                        ...getHanziSize(current.hanzi),
                       }}
                     >
                       {current.hanzi}
@@ -452,9 +550,10 @@ export function FlashcardTab({
 
                 <div className="my-auto text-center py-4 space-y-3">
                   <span
-                    className="text-5xl sm:text-6xl font-bold text-white block"
+                    className="font-bold text-white block leading-snug"
                     style={{
                       fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                      ...getHanziSizeBack(current.hanzi),
                     }}
                   >
                     {current.hanzi}
@@ -462,17 +561,7 @@ export function FlashcardTab({
                   <p className="text-3xl font-extrabold text-indigo-300 tracking-wider">
                     {current.pinyin}
                   </p>
-                  {current.hanviet && (
-                    <p className="text-sm text-slate-300 font-medium">
-                      Âm Hán-Việt: <span className="text-amber-300 font-bold">{current.hanviet}</span>
-                    </p>
-                  )}
                   <p className="text-2xl font-bold text-emerald-300">{current.meaning}</p>
-                  {current.example && (
-                    <div className="bg-slate-800/80 rounded-2xl p-3 text-sm text-slate-300 border border-slate-700/60 italic">
-                      "{current.example}"
-                    </div>
-                  )}
                 </div>
 
                 <div className="text-center text-xs text-slate-400 font-medium">
@@ -595,8 +684,9 @@ export function FlashcardTab({
                   }}
                   style={{
                     fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                    ...getHanziSize(input || current.hanzi),
                   }}
-                  className="w-full text-center text-6xl sm:text-7xl font-bold text-slate-900 placeholder:text-red-200/80 bg-transparent border-none outline-none tracking-wider px-2 z-10"
+                  className="w-full text-center font-bold text-slate-900 placeholder:text-red-200/80 bg-transparent border-none outline-none px-2 z-10 leading-snug"
                   disabled={flipped}
                   autoFocus
                 />

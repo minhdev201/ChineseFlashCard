@@ -30,9 +30,7 @@ async function seedIfEmpty(userId: string) {
       user_id: userId,
       hanzi: w.hanzi,
       pinyin: w.pinyin,
-      hanviet: w.hanviet,
       meaning: w.meaning,
-      example: w.example,
       memory_bucket: 'flashcard',
     }));
     await supabase.from('vocab').insert(rows);
@@ -125,7 +123,7 @@ export function useVocabStore(user: User | null) {
   }, [userId, refresh]);
 
   const addVocab = useCallback(
-    async (input: Pick<Vocab, 'hanzi' | 'pinyin' | 'hanviet' | 'meaning' | 'example'>) => {
+    async (input: Pick<Vocab, 'hanzi' | 'pinyin' | 'meaning'>) => {
       if (!user) throw new Error('No user logged in');
       const { data, error } = await supabase
         .from('vocab')
@@ -133,9 +131,7 @@ export function useVocabStore(user: User | null) {
           user_id: user.id,
           hanzi: input.hanzi,
           pinyin: input.pinyin,
-          hanviet: input.hanviet || null,
           meaning: input.meaning,
-          example: input.example || null,
           memory_bucket: 'flashcard',
         })
         .select('*')
@@ -152,7 +148,7 @@ export function useVocabStore(user: User | null) {
   const updateVocab = useCallback(
     async (id: string, patch: Partial<Vocab>) => {
       const allowed: Record<string, unknown> = {};
-      for (const k of ['hanzi', 'pinyin', 'hanviet', 'meaning', 'example', 'memory_bucket']) {
+      for (const k of ['hanzi', 'pinyin', 'meaning', 'memory_bucket']) {
         if (k in patch) allowed[k] = patch[k as keyof Vocab];
       }
       const { error } = await supabase.from('vocab').update(allowed).eq('id', id);

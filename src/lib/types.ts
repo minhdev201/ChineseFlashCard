@@ -3,9 +3,7 @@ export interface Vocab {
   user_id: string;
   hanzi: string;
   pinyin: string;
-  hanviet: string | null;
   meaning: string;
-  example: string | null;
   memory_bucket: MemoryBucket;
   srs_level: number;
   ease_factor: number;
