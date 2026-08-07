@@ -562,6 +562,34 @@ export function FlashcardTab({
                     {current.pinyin}
                   </p>
                   <p className="text-2xl font-bold text-emerald-300">{current.meaning}</p>
+                  {current.structure && (() => {
+                    const lines = current.structure.split('\n').map((l) => l.trim()).filter(Boolean);
+                    const formula = lines[0];
+                    const examples = lines.slice(1);
+                    return (
+                      <div className="mt-3 w-full max-w-sm mx-auto text-left" onClick={(e) => e.stopPropagation()}>
+                        {/* Formula / Pattern */}
+                        <div className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-400/30 mb-2">
+                          <p className="text-xs text-amber-300/80 font-semibold mb-0.5">Cấu trúc</p>
+                          <p className="text-sm font-bold text-amber-200 leading-relaxed">{formula}</p>
+                        </div>
+                        {/* Examples */}
+                        {examples.length > 0 && (
+                          <div className="space-y-1">
+                            {examples.map((ex, i) => (
+                              <div
+                                key={i}
+                                className="flex items-start gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40"
+                              >
+                                <span className="text-indigo-400 text-xs mt-0.5 shrink-0">▸</span>
+                                <p className="text-xs text-slate-300 leading-relaxed">{ex}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="text-center text-xs text-slate-400 font-medium">

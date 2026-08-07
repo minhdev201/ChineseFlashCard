@@ -177,6 +177,7 @@ function EditModal({
   const [hanzi, setHanzi] = useState(vocab.hanzi);
   const [pinyin, setPinyin] = useState(vocab.pinyin);
   const [meaning, setMeaning] = useState(vocab.meaning);
+  const [structure, setStructure] = useState(vocab.structure || '');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
@@ -211,6 +212,15 @@ function EditModal({
               className="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </EditField>
+          <EditField label="Cấu trúc ngữ pháp">
+            <textarea
+              value={structure}
+              onChange={(e) => setStructure(e.target.value)}
+              placeholder={`Công thức (dòng 1) + Ví dụ (các dòng sau)`}
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none text-sm leading-relaxed"
+            />
+          </EditField>
         </div>
         <div className="flex gap-2 mt-5">
           <button
@@ -225,6 +235,7 @@ function EditModal({
                 hanzi: hanzi.trim(),
                 pinyin: pinyin.trim(),
                 meaning: meaning.trim(),
+                structure: structure.trim() || null,
               })
             }
             className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"

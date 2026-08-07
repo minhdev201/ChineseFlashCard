@@ -4,6 +4,7 @@ export interface Vocab {
   hanzi: string;
   pinyin: string;
   meaning: string;
+  structure: string | null;
   memory_bucket: MemoryBucket;
   srs_level: number;
   ease_factor: number;

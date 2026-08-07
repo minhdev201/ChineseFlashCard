@@ -8,6 +8,7 @@ interface AddWordTabProps {
     hanzi: string;
     pinyin: string;
     meaning: string;
+    structure?: string | null;
   }) => Promise<unknown>;
   isDuplicate: (hanzi: string) => Vocab | undefined;
 }
@@ -16,6 +17,7 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
   const [hanzi, setHanzi] = useState('');
   const [pinyin, setPinyin] = useState('');
   const [meaning, setMeaning] = useState('');
+  const [structure, setStructure] = useState('');
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [dup, setDup] = useState(false);
@@ -36,6 +38,7 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
     setHanzi('');
     setPinyin('');
     setMeaning('');
+    setStructure('');
     setSuccess(false);
     setError('');
     setDup(false);
@@ -75,6 +78,7 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
         hanzi: h,
         pinyin: finalPinyin,
         meaning: m,
+        structure: structure.trim() || null,
       });
       setSuccess(true);
       setTimeout(() => {
@@ -127,6 +131,16 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
             value={meaning}
             onChange={(e) => setMeaning(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          />
+        </Field>
+
+        <Field label="Cấu trúc ngữ pháp" hint="Tùy chọn">
+          <textarea
+            value={structure}
+            onChange={(e) => setStructure(e.target.value)}
+            placeholder={`Dòng 1: công thức (vd: 谁的 + danh từ = ... của ai)\nDòng 2+: ví dụ (vd: 谁的书？→ Sách của ai?)`}
+            rows={4}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none text-sm leading-relaxed"
           />
         </Field>
 

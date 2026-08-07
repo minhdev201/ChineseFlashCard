@@ -123,7 +123,7 @@ export function useVocabStore(user: User | null) {
   }, [userId, refresh]);
 
   const addVocab = useCallback(
-    async (input: Pick<Vocab, 'hanzi' | 'pinyin' | 'meaning'>) => {
+    async (input: Pick<Vocab, 'hanzi' | 'pinyin' | 'meaning'> & { structure?: string | null }) => {
       if (!user) throw new Error('No user logged in');
       const { data, error } = await supabase
         .from('vocab')
@@ -132,6 +132,7 @@ export function useVocabStore(user: User | null) {
           hanzi: input.hanzi,
           pinyin: input.pinyin,
           meaning: input.meaning,
+          structure: input.structure || null,
           memory_bucket: 'flashcard',
         })
         .select('*')
@@ -148,7 +149,7 @@ export function useVocabStore(user: User | null) {
   const updateVocab = useCallback(
     async (id: string, patch: Partial<Vocab>) => {
       const allowed: Record<string, unknown> = {};
-      for (const k of ['hanzi', 'pinyin', 'meaning', 'memory_bucket']) {
+      for (const k of ['hanzi', 'pinyin', 'meaning', 'structure', 'memory_bucket']) {
         if (k in patch) allowed[k] = patch[k as keyof Vocab];
       }
       const { error } = await supabase.from('vocab').update(allowed).eq('id', id);
