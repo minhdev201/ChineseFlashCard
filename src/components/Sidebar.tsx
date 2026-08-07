@@ -13,6 +13,7 @@ import {
   X,
   ChevronRight,
   BookOpenCheck,
+  BookMarked,
 } from 'lucide-react';
 import type { FlashcardSource, TabKey } from '@/lib/types';
 import { memoryBucketLabel } from '@/lib/srs';
@@ -24,6 +25,7 @@ interface SidebarProps {
   temporaryCount: number;
   streak: number;
   totalWords: number;
+  patternCount?: number;
   email?: string | null;
   onSignOut?: () => void;
   activeSource: FlashcardSource;
@@ -36,6 +38,7 @@ const TABS: { key: TabKey; label: string; icon: typeof LayoutGrid; description: 
   { key: 'temporary', label: 'Tạm nhớ', icon: SunMedium, description: 'Từ vựng đang củng cố' },
   { key: 'add', label: 'Thêm từ', icon: PlusCircle, description: 'Thêm từ vựng mới vào kho' },
   { key: 'list', label: 'Danh sách', icon: Library, description: 'Quản lý & chỉnh sửa từ vựng' },
+  { key: 'patterns', label: 'Mẫu câu', icon: BookMarked, description: 'Cấu trúc ngữ pháp & mẫu câu' },
   { key: 'stats', label: 'Thống kê', icon: BarChart3, description: 'Báo cáo và tiến độ học' },
 ];
 
@@ -46,6 +49,7 @@ export function Sidebar({
   temporaryCount,
   streak,
   totalWords,
+  patternCount = 0,
   email,
   onSignOut,
   activeSource,
@@ -171,6 +175,15 @@ export function Sidebar({
                     }`}
                   >
                     {temporaryCount}
+                  </span>
+                )}
+                {t.key === 'patterns' && patternCount > 0 && (
+                  <span
+                    className={`inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full text-xs font-bold ${
+                      isActive ? 'bg-white text-indigo-600' : 'bg-indigo-500 text-white'
+                    }`}
+                  >
+                    {patternCount}
                   </span>
                 )}
                 {isActive && <ChevronRight className="w-4 h-4 opacity-80" />}

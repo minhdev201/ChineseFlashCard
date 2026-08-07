@@ -4,10 +4,12 @@ import { FlashcardTab } from '@/components/FlashcardTab';
 import { MemoryBucketTab } from '@/components/MemoryBucketTab';
 import { AddWordTab } from '@/components/AddWordTab';
 import { WordListTab } from '@/components/WordListTab';
+import { PatternTab } from '@/components/PatternTab';
 import { StatsTab } from '@/components/StatsTab';
 import { AuthScreen } from '@/components/AuthScreen';
 import { useAuth } from '@/lib/useAuth';
 import { useVocabStore } from '@/lib/useVocabStore';
+import { usePatternStore } from '@/lib/usePatternStore';
 import type { FlashcardSource, MemoryBucket, TabKey } from '@/lib/types';
 
 function App() {
@@ -15,6 +17,7 @@ function App() {
   const [flashcardSource, setFlashcardSource] = useState<FlashcardSource>('all');
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const store = useVocabStore(user);
+  const patternStore = usePatternStore(user);
 
   const unrememberedCount = useMemo(
     () => store.vocab.filter((item) => item.memory_bucket === 'unremembered').length,
@@ -77,6 +80,7 @@ function App() {
         temporaryCount={temporaryCount}
         streak={store.streak}
         totalWords={store.vocab.length}
+        patternCount={patternStore.patterns.length}
         email={user.email}
         onSignOut={handleSignOut}
         activeSource={flashcardSource}
@@ -117,6 +121,14 @@ function App() {
             vocab={store.vocab}
             onUpdate={store.updateVocab}
             onDelete={store.deleteVocab}
+          />
+        )}
+        {tab === 'patterns' && (
+          <PatternTab
+            patterns={patternStore.patterns}
+            onAdd={patternStore.addPattern}
+            onUpdate={patternStore.updatePattern}
+            onDelete={patternStore.deletePattern}
           />
         )}
         {tab === 'stats' && (
