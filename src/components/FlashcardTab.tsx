@@ -154,6 +154,8 @@ export function FlashcardTab({
   const [touchedIds, setTouchedIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const prevActiveSource = useRef<FlashcardSource>(activeSource);
+  const prevSortMode = useRef<SortMode>(sortMode);
+  const prevVocabLength = useRef<number>(vocab.length);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -167,8 +169,14 @@ export function FlashcardTab({
   }, []);
 
   useEffect(() => {
-    if (prevActiveSource.current !== activeSource) {
+    const sourceChanged = prevActiveSource.current !== activeSource;
+    const sortChanged = prevSortMode.current !== sortMode;
+    const lengthChanged = prevVocabLength.current !== vocab.length;
+
+    if (sourceChanged || sortChanged || lengthChanged) {
       prevActiveSource.current = activeSource;
+      prevSortMode.current = sortMode;
+      prevVocabLength.current = vocab.length;
       setIsSwitching(true);
       setQueue(baseList);
       setIndex(0);
@@ -180,19 +188,15 @@ export function FlashcardTab({
       return;
     }
 
+    // Khi chỉ có cập nhật thuộc tính thẻ (ví dụ bấm 1, 2, 3 đổi bucket): Giữ nguyên thứ tự queue và index
     setQueue((prevQueue) => {
       if (prevQueue.length === 0) return baseList;
-      // When sortMode changes, rebuild queue from baseList
-      const prevIds = prevQueue.map((c) => c.id);
-      const baseIds = baseList.map((c) => c.id);
-      const orderChanged = prevIds.length !== baseIds.length || prevIds.some((id, i) => id !== baseIds[i]);
-      if (orderChanged) return baseList;
       return prevQueue.map((card) => {
         const fresh = vocab.find((v) => v.id === card.id);
         return fresh ? { ...card, ...fresh } : card;
       });
     });
-  }, [baseList, vocab, activeSource]);
+  }, [baseList, vocab, activeSource, sortMode]);
 
   const current = queue[index];
 
@@ -212,7 +216,6 @@ export function FlashcardTab({
     setIndex((i) => (i + 1) % Math.max(queue.length, 1));
     setTimeout(() => {
       setIsSwitching(false);
-      inputRef.current?.focus();
     }, 60);
   }, [queue.length]);
 
@@ -224,7 +227,6 @@ export function FlashcardTab({
     setIndex((i) => (i - 1 + Math.max(queue.length, 1)) % Math.max(queue.length, 1));
     setTimeout(() => {
       setIsSwitching(false);
-      inputRef.current?.focus();
     }, 60);
   }, [queue.length]);
 
@@ -279,13 +281,23 @@ export function FlashcardTab({
     setFeedback('none');
     setTimeout(() => {
       setIsSwitching(false);
-      inputRef.current?.focus();
     }, 60);
   };
 
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Phím Tab: focus vào ô nhập hán ngữ, nhấn Tab lần nữa thì focus ra ngoài (blur)
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (document.activeElement === inputRef.current) {
+          inputRef.current?.blur();
+        } else {
+          inputRef.current?.focus();
+        }
+        return;
+      }
+
       const tag = (e.target as HTMLElement)?.tagName;
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA';
 
@@ -716,7 +728,6 @@ export function FlashcardTab({
                   }}
                   className="w-full text-center font-bold text-slate-900 placeholder:text-red-200/80 bg-transparent border-none outline-none px-2 z-10 leading-snug"
                   disabled={flipped}
-                  autoFocus
                 />
               </div>
             </div>
@@ -744,10 +755,7 @@ export function FlashcardTab({
                   className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-base shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
                 >
                   <Check className="w-5 h-5" />
-                  <span>Chính xác! Thẻ tiếp theo</span>
-                  <span className="flex items-center gap-1 text-xs bg-white/20 px-2 py-0.5 rounded font-mono">
-                    <CornerDownLeft className="w-3 h-3" /> Enter
-                  </span>
+                  <span>Chính xác! Chuyển thẻ tiếp theo (→)</span>
                 </button>
               )}
             </div>
@@ -788,14 +796,14 @@ export function FlashcardTab({
             <div className="px-3 py-2 rounded-xl bg-slate-100/80 border border-slate-200/60 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
               <div className="flex items-center gap-1.5">
                 <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Gõ chữ Hán trực tiếp trong ô nét chữ Tianzige.</span>
+                <span>Nhấn <strong>Tab</strong> để bật/tắt ô gõ chữ Hán.</span>
               </div>
               <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-slate-500">
+                <span className="bg-white px-1.5 py-0.5 rounded border text-indigo-600 font-bold">Tab</span> Bật/Tắt gõ
                 <span className="bg-white px-1.5 py-0.5 rounded border">←</span> Trước
                 <span className="bg-white px-1.5 py-0.5 rounded border">→</span> Tiếp
-                <span className="bg-white px-1.5 py-0.5 rounded border">1</span> Chưa nhớ
-                <span className="bg-white px-1.5 py-0.5 rounded border">2</span> Tạm nhớ
-                <span className="bg-white px-1.5 py-0.5 rounded border">3</span> Đã nhớ
+                <span className="bg-white px-1.5 py-0.5 rounded border">Space</span> Lật thẻ
+                <span className="bg-white px-1.5 py-0.5 rounded border">1/2/3</span> Đánh giá
               </div>
             </div>
           </div>
