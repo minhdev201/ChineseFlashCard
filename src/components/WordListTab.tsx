@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search, Volume2, Pencil, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Search, Volume2, Pencil, Trash2, X, AlertTriangle, Copy, Check, FileText } from 'lucide-react';
 import type { Vocab } from '@/lib/types';
 import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
 import { speak } from '@/lib/speech';
@@ -15,6 +15,8 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Vocab | null>(null);
   const [deleting, setDeleting] = useState<Vocab | null>(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [quickCopied, setQuickCopied] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -29,13 +31,13 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
       {/* Search */}
-      <div className="relative mb-5">
+      <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Tìm theo Hán tự, Pinyin, Hán Việt hoặc nghĩa..."
+          placeholder="Tìm theo Hán tự, Pinyin hoặc nghĩa..."
           className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
         />
         {query && (
@@ -48,9 +50,48 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
         )}
       </div>
 
-      <p className="text-sm text-slate-500 mb-3">
-        {filtered.length} / {vocab.length} từ
-      </p>
+      {/* Header Info & Export Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <p className="text-sm font-semibold text-slate-600">
+          Hiển thị {filtered.length} / {vocab.length} từ vựng
+        </p>
+
+        {vocab.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const text = (query ? filtered : vocab).map((v) => v.hanzi.trim()).filter(Boolean).join(', ');
+                navigator.clipboard.writeText(text);
+                setQuickCopied(true);
+                setTimeout(() => setQuickCopied(false), 2000);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+              title="Sao chép nhanh danh sách Hán tự cách nhau bởi dấu phẩy"
+            >
+              {quickCopied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700 font-bold">Đã sao chép!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Copy Hán tự (,)</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => setExportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors border border-indigo-200"
+              title="Mở bảng xem và xuất danh sách Hán tự"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Xem danh sách xuất</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* List */}
       {filtered.length === 0 ? (
@@ -161,6 +202,16 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
           </div>
         </div>
       )}
+
+      {/* Export Hanzi Modal */}
+      {exportModalOpen && (
+        <ExportHanziModal
+          vocab={vocab}
+          filtered={filtered}
+          hasQuery={Boolean(query.trim())}
+          onClose={() => setExportModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -253,6 +304,129 @@ function EditField({ label, children }: { label: string; children: React.ReactNo
     <div>
       <label className="block text-sm font-medium text-slate-600 mb-1">{label}</label>
       {children}
+    </div>
+  );
+}
+
+function ExportHanziModal({
+  vocab,
+  filtered,
+  hasQuery,
+  onClose,
+}: {
+  vocab: Vocab[];
+  filtered: Vocab[];
+  hasQuery: boolean;
+  onClose: () => void;
+}) {
+  const [scope, setScope] = useState<'all' | 'filtered'>(hasQuery ? 'filtered' : 'all');
+  const [copied, setCopied] = useState(false);
+
+  const targetList = scope === 'filtered' && hasQuery ? filtered : vocab;
+  const hanziListString = useMemo(() => {
+    return targetList
+      .map((v) => v.hanzi.trim())
+      .filter(Boolean)
+      .join(', ');
+  }, [targetList]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(hanziListString);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-xl w-full shadow-2xl animate-pop border border-slate-200 flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Xuất danh sách Hán tự</h3>
+              <p className="text-xs text-slate-500">Chỉ gồm các chữ Hán cách nhau bởi dấu phẩy</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="my-4 space-y-3 flex-1 overflow-y-auto">
+          {hasQuery && (
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+              <button
+                onClick={() => setScope('filtered')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  scope === 'filtered'
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Đang tìm kiếm ({filtered.length} từ)
+              </button>
+              <button
+                onClick={() => setScope('all')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  scope === 'all'
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Tất cả ({vocab.length} từ)
+              </button>
+            </div>
+          )}
+
+          <div>
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mb-1.5">
+              <span>Định dạng: Chữ Hán, cách nhau bởi dấu phẩy (", ")</span>
+              <span className="font-mono text-indigo-600 font-bold">{targetList.length} từ</span>
+            </div>
+
+            <textarea
+              readOnly
+              value={hanziListString}
+              rows={8}
+              onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+              style={{ fontFamily: '"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif' }}
+              className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 text-base leading-relaxed outline-none focus:border-indigo-400 focus:bg-white transition-all select-all resize-none font-medium"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 px-4 rounded-2xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm"
+          >
+            Đóng
+          </button>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold transition-all shadow-md shadow-indigo-500/20 text-sm flex items-center justify-center gap-2 active:scale-95"
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4 text-white" />
+                <span>Đã sao chép thành công!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 text-white" />
+                <span>Sao chép tất cả ({targetList.length} từ)</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
