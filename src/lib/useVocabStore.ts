@@ -123,7 +123,12 @@ export function useVocabStore(user: User | null) {
   }, [userId, refresh]);
 
   const addVocab = useCallback(
-    async (input: Pick<Vocab, 'hanzi' | 'pinyin' | 'meaning'> & { structure?: string | null }) => {
+    async (
+      input: Pick<Vocab, 'hanzi' | 'pinyin' | 'meaning'> & {
+        structure?: string | null;
+        memory_bucket?: MemoryBucket;
+      }
+    ) => {
       if (!user) throw new Error('No user logged in');
       const { data, error } = await supabase
         .from('vocab')
@@ -133,7 +138,7 @@ export function useVocabStore(user: User | null) {
           pinyin: input.pinyin,
           meaning: input.meaning,
           structure: input.structure || null,
-          memory_bucket: 'flashcard',
+          memory_bucket: input.memory_bucket || 'unremembered',
         })
         .select('*')
         .single();
