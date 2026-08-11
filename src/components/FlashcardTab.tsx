@@ -157,6 +157,16 @@ export function FlashcardTab({
   const prevSortMode = useRef<SortMode>(sortMode);
   const prevVocabLength = useRef<number>(vocab.length);
 
+  // Tinder swipe gesture state
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [swipeOutDir, setSwipeOutDir] = useState<'left' | 'right' | null>(null);
+
+  const dragStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const justSwipedRef = useRef(false);
+
   // Close sort dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -184,6 +194,8 @@ export function FlashcardTab({
       setInput('');
       setFeedback('none');
       setTouchedIds(new Set());
+      setDragOffset({ x: 0, y: 0 });
+      setSwipeOutDir(null);
       setTimeout(() => setIsSwitching(false), 60);
       return;
     }
@@ -213,10 +225,12 @@ export function FlashcardTab({
     setFlipped(false);
     setInput('');
     setFeedback('none');
+    setDragOffset({ x: 0, y: 0 });
+    setSwipeOutDir(null);
     setIndex((i) => (i + 1) % Math.max(queue.length, 1));
     setTimeout(() => {
       setIsSwitching(false);
-    }, 60);
+    }, 40);
   }, [queue.length]);
 
   const goPrev = useCallback(() => {
@@ -224,11 +238,112 @@ export function FlashcardTab({
     setFlipped(false);
     setInput('');
     setFeedback('none');
+    setDragOffset({ x: 0, y: 0 });
+    setSwipeOutDir(null);
     setIndex((i) => (i - 1 + Math.max(queue.length, 1)) % Math.max(queue.length, 1));
     setTimeout(() => {
       setIsSwitching(false);
-    }, 60);
+    }, 40);
   }, [queue.length]);
+
+  // Pointer swipe handlers (clean linear slide, no bounce)
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('button') ||
+      target.closest('input') ||
+      target.closest('textarea') ||
+      target.closest('a')
+    ) {
+      return;
+    }
+    if (e.button !== 0) return;
+
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      time: Date.now(),
+    };
+    isDraggingRef.current = false;
+    dragOffsetRef.current = { x: 0, y: 0 };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+
+    if (!isDraggingRef.current) {
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+        dragStartRef.current = null;
+        return;
+      }
+      if (Math.abs(dx) > 8) {
+        isDraggingRef.current = true;
+        setIsDragging(true);
+      }
+    }
+
+    if (isDraggingRef.current) {
+      const newOffset = {
+        x: dx,
+        y: dy * 0.15,
+      };
+      dragOffsetRef.current = newOffset;
+      setDragOffset(newOffset);
+    }
+  };
+
+  const handlePointerUpOrCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+
+    try {
+      if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // ignore
+    }
+
+    const start = dragStartRef.current;
+    const wasDragging = isDraggingRef.current;
+    const dx = e.clientX - start.x;
+    const dt = Math.max(Date.now() - start.time, 1);
+    const vx = dx / dt;
+
+    dragStartRef.current = null;
+    isDraggingRef.current = false;
+    setIsDragging(false);
+
+    if (!wasDragging) {
+      setDragOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    justSwipedRef.current = true;
+    setTimeout(() => {
+      justSwipedRef.current = false;
+    }, 150);
+
+    const isSwipeLeft = dx < -60 || (dx < -25 && vx < -0.3);
+    const isSwipeRight = dx > 60 || (dx > 25 && vx > 0.3);
+
+    if (isSwipeLeft) {
+      setSwipeOutDir('left');
+      setTimeout(() => {
+        goNext();
+      }, 160);
+    } else if (isSwipeRight) {
+      setSwipeOutDir('right');
+      setTimeout(() => {
+        goPrev();
+      }, 160);
+    } else {
+      setDragOffset({ x: 0, y: 0 });
+    }
+  };
 
   const handleCheck = useCallback(() => {
     if (!current || flipped) return;
@@ -474,138 +589,186 @@ export function FlashcardTab({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT FLASHCARD VIEW COLUMN */}
         <div className="lg:col-span-6 flex flex-col space-y-4">
-          <div className="flip-scene w-full">
+          {/* Card Container */}
+          <div className="relative w-full" style={{ minHeight: '380px' }}>
+            {/* Swipeable Card Container */}
             <div
-              className={`flip-card relative w-full ${flipped ? 'is-flipped' : ''} ${isSwitching ? 'no-transition' : ''
-                }`}
-              style={{ minHeight: '380px' }}
-              onClick={() => setFlipped((f) => !f)}
+              className="relative w-full touch-pan-y select-none"
+              style={{
+                transform:
+                  swipeOutDir === 'left'
+                    ? 'translate3d(-125%, 0, 0) rotate(-10deg)'
+                    : swipeOutDir === 'right'
+                    ? 'translate3d(125%, 0, 0) rotate(10deg)'
+                    : isDragging
+                    ? `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${Math.max(
+                        Math.min(dragOffset.x * 0.05, 10),
+                        -10
+                      )}deg)`
+                    : 'translate3d(0, 0, 0) rotate(0deg)',
+                opacity:
+                  swipeOutDir
+                    ? 0
+                    : isDragging
+                    ? Math.max(1 - Math.abs(dragOffset.x) / 450, 0.4)
+                    : 1,
+                transformOrigin: '50% 85%',
+                transition:
+                  isDragging || isSwitching
+                    ? 'none'
+                    : swipeOutDir
+                    ? 'transform 0.18s ease-out, opacity 0.18s ease-out'
+                    : 'transform 0.18s ease-out, opacity 0.18s ease-out',
+                cursor: isDragging ? 'grabbing' : 'grab',
+              }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUpOrCancel}
+              onPointerCancel={handlePointerUpOrCancel}
             >
-              {/* Front Face */}
-              <div
-                className={`flip-face absolute inset-0 rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 cursor-pointer hover:border-indigo-300 transition-all duration-300 ${flipped ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
+              {/* 3D Flip Card Scene */}
+              <div className="flip-scene w-full">
+                <div
+                  className={`flip-card relative w-full ${flipped ? 'is-flipped' : ''} ${
+                    isSwitching ? 'no-transition' : ''
                   }`}
-              >
-                <div className="w-full flex items-center justify-between">
-                  <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-bold ${memoryBucketColor(
-                      current.memory_bucket
-                    )}`}
-                  >
-                    {memoryBucketLabel(current.memory_bucket)}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speakCurrent();
-                    }}
-                    className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm"
-                    title="Phát âm chữ Hán"
-                  >
-                    <Volume2 className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Main Hanzi visual display inside stroke grid box */}
-                <div className="flex-1 flex flex-col items-center justify-center my-4 w-full">
+                  style={{ minHeight: '380px' }}
+                  onClick={() => {
+                    if (justSwipedRef.current) return;
+                    setFlipped((f) => !f);
+                  }}
+                >
+                  {/* Front Face */}
                   <div
-                    className={`relative flex items-center justify-center p-6 rounded-2xl transition-all w-full max-w-[460px] ${showTianzige
-                        ? 'bg-amber-50/50 border-2 border-dashed border-red-300/80 shadow-inner'
-                        : ''
-                      }`}
-                    style={{ minWidth: '280px', minHeight: '220px' }}
+                    className={`flip-face absolute inset-0 rounded-3xl bg-white border border-slate-200/90 shadow-xl flex flex-col items-center justify-between p-6 cursor-pointer hover:border-indigo-300 transition-all duration-300 ${
+                      flipped ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
+                    }`}
                   >
-                    {showTianzige && (
-                      <div className="absolute inset-0 pointer-events-none opacity-30 flex items-center justify-center">
-                        <div className="w-full h-[1px] bg-red-400"></div>
-                        <div className="h-full w-[1px] bg-red-400 absolute"></div>
-                        <div className="w-full h-full border border-red-400 absolute"></div>
-                      </div>
-                    )}
-                    <span
-                      className="font-black text-slate-900 select-none z-10 text-center leading-snug"
-                      style={{
-                        fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
-                        ...getHanziSize(current.hanzi),
-                      }}
-                    >
-                      {current.hanzi}
-                    </span>
-                  </div>
-                </div>
+                    <div className="w-full flex items-center justify-between">
+                      <span
+                        className={`text-xs px-2.5 py-1 rounded-full font-bold ${memoryBucketColor(
+                          current.memory_bucket
+                        )}`}
+                      >
+                        {memoryBucketLabel(current.memory_bucket)}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakCurrent();
+                        }}
+                        className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm"
+                        title="Phát âm chữ Hán"
+                      >
+                        <Volume2 className="w-5 h-5" />
+                      </button>
+                    </div>
 
-                <div className="flex items-center gap-1 text-xs font-semibold text-slate-400">
-                  <RotateCcw className="w-3.5 h-3.5" /> Nhấp hoặc gõ Space để lật mặt thẻ
-                </div>
-              </div>
-
-              {/* Back Face */}
-              <div
-                className={`flip-face flip-face-back absolute inset-0 rounded-3xl bg-slate-900 border border-indigo-500/30 text-white shadow-2xl flex flex-col p-6 cursor-pointer overflow-y-auto justify-between transition-all duration-300 ${flipped ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                  }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                    Đáp án chi tiết
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speakCurrent();
-                    }}
-                    className="p-2.5 rounded-2xl bg-indigo-600/40 text-indigo-200 hover:bg-indigo-600 transition-colors"
-                    title="Phát âm"
-                  >
-                    <Volume2 className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="my-auto text-center py-4 space-y-3">
-                  <span
-                    className="font-bold text-white block leading-snug"
-                    style={{
-                      fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
-                      ...getHanziSizeBack(current.hanzi),
-                    }}
-                  >
-                    {current.hanzi}
-                  </span>
-                  <p className="text-3xl font-extrabold text-indigo-300 tracking-wider">
-                    {current.pinyin}
-                  </p>
-                  <p className="text-2xl font-bold text-emerald-300">{current.meaning}</p>
-                  {current.structure && (() => {
-                    const lines = current.structure.split('\n').map((l) => l.trim()).filter(Boolean);
-                    const formula = lines[0];
-                    const examples = lines.slice(1);
-                    return (
-                      <div className="mt-3 w-full max-w-sm mx-auto text-left" onClick={(e) => e.stopPropagation()}>
-                        {/* Formula / Pattern */}
-                        <div className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-400/30 mb-2">
-                          <p className="text-xs text-amber-300/80 font-semibold mb-0.5">Cấu trúc</p>
-                          <p className="text-sm font-bold text-amber-200 leading-relaxed">{formula}</p>
-                        </div>
-                        {/* Examples */}
-                        {examples.length > 0 && (
-                          <div className="space-y-1">
-                            {examples.map((ex, i) => (
-                              <div
-                                key={i}
-                                className="flex items-start gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40"
-                              >
-                                <span className="text-indigo-400 text-xs mt-0.5 shrink-0">▸</span>
-                                <p className="text-xs text-slate-300 leading-relaxed">{ex}</p>
-                              </div>
-                            ))}
+                    {/* Main Hanzi visual display inside stroke grid box */}
+                    <div className="flex-1 flex flex-col items-center justify-center my-4 w-full">
+                      <div
+                        className={`relative flex items-center justify-center p-6 rounded-2xl transition-all w-full max-w-[460px] ${
+                          showTianzige
+                            ? 'bg-amber-50/50 border-2 border-dashed border-red-300/80 shadow-inner'
+                            : ''
+                        }`}
+                        style={{ minWidth: '280px', minHeight: '220px' }}
+                      >
+                        {showTianzige && (
+                          <div className="absolute inset-0 pointer-events-none opacity-30 flex items-center justify-center">
+                            <div className="w-full h-[1px] bg-red-400"></div>
+                            <div className="h-full w-[1px] bg-red-400 absolute"></div>
+                            <div className="w-full h-full border border-red-400 absolute"></div>
                           </div>
                         )}
+                        <span
+                          className="font-black text-slate-900 select-none z-10 text-center leading-snug"
+                          style={{
+                            fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                            ...getHanziSize(current.hanzi),
+                          }}
+                        >
+                          {current.hanzi}
+                        </span>
                       </div>
-                    );
-                  })()}
-                </div>
+                    </div>
 
-                <div className="text-center text-xs text-slate-400 font-medium">
-                  Nhấn Space để lật lại thẻ
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 text-center">
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Nhấp để lật · <strong>Vuốt trái/phải</strong> để tiến/lùi</span>
+                    </div>
+                  </div>
+
+                  {/* Back Face */}
+                  <div
+                    className={`flip-face flip-face-back absolute inset-0 rounded-3xl bg-slate-900 border border-indigo-500/30 text-white shadow-2xl flex flex-col p-6 cursor-pointer overflow-y-auto justify-between transition-all duration-300 ${
+                      flipped ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                        Đáp án chi tiết
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakCurrent();
+                        }}
+                        className="p-2.5 rounded-2xl bg-indigo-600/40 text-indigo-200 hover:bg-indigo-600 transition-colors"
+                        title="Phát âm"
+                      >
+                        <Volume2 className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="my-auto text-center py-4 space-y-3">
+                      <span
+                        className="font-bold text-white block leading-snug"
+                        style={{
+                          fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                          ...getHanziSizeBack(current.hanzi),
+                        }}
+                      >
+                        {current.hanzi}
+                      </span>
+                      <p className="text-3xl font-extrabold text-indigo-300 tracking-wider">
+                        {current.pinyin}
+                      </p>
+                      <p className="text-2xl font-bold text-emerald-300">{current.meaning}</p>
+                      {current.structure && (() => {
+                        const lines = current.structure.split('\n').map((l) => l.trim()).filter(Boolean);
+                        const formula = lines[0];
+                        const examples = lines.slice(1);
+                        return (
+                          <div className="mt-3 w-full max-w-sm mx-auto text-left" onClick={(e) => e.stopPropagation()}>
+                            {/* Formula / Pattern */}
+                            <div className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-400/30 mb-2">
+                              <p className="text-xs text-amber-300/80 font-semibold mb-0.5">Cấu trúc</p>
+                              <p className="text-sm font-bold text-amber-200 leading-relaxed">{formula}</p>
+                            </div>
+                            {/* Examples */}
+                            {examples.length > 0 && (
+                              <div className="space-y-1">
+                                {examples.map((ex, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-start gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40"
+                                  >
+                                    <span className="text-indigo-400 text-xs mt-0.5 shrink-0">▸</span>
+                                    <p className="text-xs text-slate-300 leading-relaxed">{ex}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="text-center text-xs text-slate-400 font-medium">
+                      Nhấn Space để lật lại thẻ · Vuốt trái/phải để tiến/lùi
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -620,12 +783,15 @@ export function FlashcardTab({
                 <button
                   key={action.bucket}
                   onClick={() => handleSetBucket(action.bucket)}
-                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl font-semibold transition-all text-center ${isSaved ? action.savedClasses : action.classes
-                    } hover:scale-[1.02] active:scale-95`}
+                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl font-semibold transition-all text-center ${
+                    isSaved ? action.savedClasses : action.classes
+                  } hover:scale-[1.02] active:scale-95`}
                 >
                   <div className="flex items-center gap-1">
                     {isSaved ? <Check className="w-4 h-4 shrink-0" /> : <Icon className="w-4 h-4 shrink-0" />}
-                    <span className="text-xs sm:text-sm font-bold truncate">{isSaved ? action.savedLabel : action.label}</span>
+                    <span className="text-xs sm:text-sm font-bold truncate">
+                      {isSaved ? action.savedLabel : action.label}
+                    </span>
                   </div>
                   <span className="text-[10px] opacity-90 font-normal mt-0.5 truncate hidden sm:block">
                     {isSaved ? 'Nhấn để bỏ' : action.hint}
@@ -640,7 +806,7 @@ export function FlashcardTab({
             <button
               onClick={goPrev}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors shadow-sm text-sm"
-              title="Phím mũi tên Trái (←)"
+              title="Phím mũi tên Trái (←) hoặc Vuốt sang phải"
             >
               <ChevronLeft className="w-4 h-4" /> Thẻ trước (←)
             </button>
@@ -653,7 +819,7 @@ export function FlashcardTab({
             <button
               onClick={goNext}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors shadow-sm text-sm"
-              title="Phím mũi tên Phải (→)"
+              title="Phím mũi tên Phải (→) hoặc Vuốt sang trái"
             >
               Tiếp theo (→) <ChevronRight className="w-4 h-4" />
             </button>
@@ -793,16 +959,16 @@ export function FlashcardTab({
               </div>
             )}
 
-            <div className="px-3 py-2 rounded-xl bg-slate-100/80 border border-slate-200/60 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+            <div className="px-3 py-2.5 rounded-xl bg-slate-100/80 border border-slate-200/60 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
               <div className="flex items-center gap-1.5">
-                <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Nhấn <strong>Tab</strong> để bật/tắt ô gõ chữ Hán.</span>
+                <HelpCircle className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span>💡 <strong>Vuốt sang trái/phải</strong> (hoặc kéo chuột) để tiến/lùi từ.</span>
               </div>
               <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-slate-500">
                 <span className="bg-white px-1.5 py-0.5 rounded border text-indigo-600 font-bold">Tab</span> Bật/Tắt gõ
-                <span className="bg-white px-1.5 py-0.5 rounded border">←</span> Trước
-                <span className="bg-white px-1.5 py-0.5 rounded border">→</span> Tiếp
-                <span className="bg-white px-1.5 py-0.5 rounded border">Space</span> Lật thẻ
+                <span className="bg-white px-1.5 py-0.5 rounded border">← / Vuốt phải</span> Trước
+                <span className="bg-white px-1.5 py-0.5 rounded border">→ / Vuốt trái</span> Tiếp
+                <span className="bg-white px-1.5 py-0.5 rounded border">Space</span> Lật
                 <span className="bg-white px-1.5 py-0.5 rounded border">1/2/3</span> Đánh giá
               </div>
             </div>
