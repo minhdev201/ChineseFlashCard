@@ -32,22 +32,4 @@ export interface ActivityLog {
 }
 
 export type FlashcardSource = 'all' | MemoryBucket;
-
-export interface PatternExample {
-  id?: string;
-  hanzi: string;
-  pinyin: string;
-  meaning: string;
-}
-
-export interface GrammarPattern {
-  id: string;
-  user_id: string;
-  pattern: string;
-  meaning: string;
-  note: string | null;
-  examples: PatternExample[];
-  created_at: string;
-}
-
-export type TabKey = 'flashcard' | 'unremembered' | 'temporary' | 'add' | 'list' | 'patterns' | 'stats';
+export type TabKey = 'flashcard' | 'add' | 'list' | 'stats' | 'network';

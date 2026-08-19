@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  BookOpenCheck,
   Pin,
   SunMedium,
   CheckCheck,
@@ -21,16 +20,15 @@ import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
   ChevronDown,
+  Filter,
 } from 'lucide-react';
-import type { FlashcardSource, MemoryBucket, Vocab } from '@/lib/types';
+import type { MemoryBucket, Vocab } from '@/lib/types';
 import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
 import { playTing, speak } from '@/lib/speech';
 
 interface FlashcardTabProps {
   vocab: Vocab[];
-  activeSource: FlashcardSource;
   onSetMemoryBucket: (id: string, bucket: MemoryBucket) => Promise<void>;
-  onShowAllFlashcards: () => void;
   onRecordReview?: () => Promise<void>;
 }
 
@@ -51,6 +49,14 @@ const SORT_OPTIONS: { value: SortMode; label: string; icon: typeof Shuffle }[] =
   { value: 'newest', label: 'Mới nhất trước', icon: ArrowDownNarrowWide },
   { value: 'oldest', label: 'Cũ nhất trước', icon: ArrowUpNarrowWide },
   { value: 'random', label: 'Ngẫu nhiên', icon: Shuffle },
+];
+
+type BucketFilter = 'all' | 'unremembered' | 'temporary';
+
+const BUCKET_FILTER_OPTIONS: { value: BucketFilter; label: string; dot: string }[] = [
+  { value: 'all',          label: 'Tất cả',   dot: 'bg-indigo-400' },
+  { value: 'unremembered', label: 'Chưa nhớ', dot: 'bg-rose-400' },
+  { value: 'temporary',   label: 'Tạm nhớ',  dot: 'bg-amber-400' },
 ];
 
 const MEMORY_ACTIONS: {
@@ -93,9 +99,9 @@ const MEMORY_ACTIONS: {
 
 const TONE_SYMBOLS = ['ā', 'á', 'ǎ', 'à', 'ē', 'é', 'ě', 'è', 'ī', 'í', 'ǐ', 'ì', 'ō', 'ó', 'ǒ', 'ò', 'ū', 'ú', 'ǔ', 'ù', 'ǖ', 'ǘ', 'ǚ', 'ǜ'];
 
-function sourceLabel(source: FlashcardSource): string {
-  if (source === 'all') return 'Toàn bộ Flashcard';
-  return memoryBucketLabel(source);
+function sourceLabel(filter: BucketFilter): string {
+  if (filter === 'all') return 'Toàn bộ';
+  return memoryBucketLabel(filter as MemoryBucket);
 }
 
 /** Returns dynamic fontSize + letterSpacing based on hanzi character count */
@@ -122,19 +128,24 @@ function getHanziSizeBack(text: string): { fontSize: string; letterSpacing: stri
 
 export function FlashcardTab({
   vocab,
-  activeSource,
   onSetMemoryBucket,
-  onShowAllFlashcards,
   onRecordReview,
 }: FlashcardTabProps) {
+  const [bucketFilter, setBucketFilter] = useState<BucketFilter>('all');
+  const bucketDropdownRef = useRef<HTMLDivElement>(null);
+  const [bucketDropdownOpen, setBucketDropdownOpen] = useState(false);
+
   const filteredList = useMemo(() => {
-    if (activeSource === 'all') return vocab;
-    return vocab.filter((item) => item.memory_bucket === activeSource);
-  }, [vocab, activeSource]);
+    if (bucketFilter === 'all') return vocab;
+    return vocab.filter((item) => item.memory_bucket === bucketFilter);
+  }, [vocab, bucketFilter]);
 
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  const prevBucketFilter = useRef<BucketFilter>('all');
+  const prevVocabLength = useRef<number>(vocab.length);
 
   const baseList = useMemo(() => {
     if (sortMode === 'newest') return [...filteredList].reverse();
@@ -153,9 +164,8 @@ export function FlashcardTab({
   const [showTianzige, setShowTianzige] = useState(true);
   const [touchedIds, setTouchedIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
-  const prevActiveSource = useRef<FlashcardSource>(activeSource);
+  const prevActiveSource = useRef<BucketFilter>(bucketFilter);
   const prevSortMode = useRef<SortMode>(sortMode);
-  const prevVocabLength = useRef<number>(vocab.length);
 
   // Tinder swipe gesture state
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -173,18 +183,21 @@ export function FlashcardTab({
       if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
         setSortDropdownOpen(false);
       }
+      if (bucketDropdownRef.current && !bucketDropdownRef.current.contains(e.target as Node)) {
+        setBucketDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   useEffect(() => {
-    const sourceChanged = prevActiveSource.current !== activeSource;
+    const sourceChanged = prevBucketFilter.current !== bucketFilter;
     const sortChanged = prevSortMode.current !== sortMode;
     const lengthChanged = prevVocabLength.current !== vocab.length;
 
     if (sourceChanged || sortChanged || lengthChanged) {
-      prevActiveSource.current = activeSource;
+      prevBucketFilter.current = bucketFilter;
       prevSortMode.current = sortMode;
       prevVocabLength.current = vocab.length;
       setIsSwitching(true);
@@ -208,7 +221,7 @@ export function FlashcardTab({
         return fresh ? { ...card, ...fresh } : card;
       });
     });
-  }, [baseList, vocab, activeSource, sortMode]);
+  }, [baseList, vocab, bucketFilter, sortMode]);
 
   const current = queue[index];
 
@@ -458,16 +471,16 @@ export function FlashcardTab({
         </div>
         <h2 className="text-2xl font-bold text-slate-800 mb-2">Chưa có từ vựng nào</h2>
         <p className="text-slate-500 mb-6">
-          {activeSource === 'all'
+          {bucketFilter === 'all'
             ? 'Hãy chọn "Thêm từ" ở sidebar bên trái để nhập thêm từ vựng mới.'
-            : `Hiện chưa có từ nào trong nhóm "${sourceLabel(activeSource)}".`}
+            : `Hiện chưa có từ nào trong nhóm "${sourceLabel(bucketFilter)}".`}
         </p>
-        {activeSource !== 'all' && (
+        {bucketFilter !== 'all' && (
           <button
-            onClick={onShowAllFlashcards}
+            onClick={() => setBucketFilter('all')}
             className="px-6 py-3 rounded-2xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"
           >
-            Quay về Flashcard chung
+            Xem toàn bộ Flashcard
           </button>
         )}
       </div>
@@ -487,11 +500,15 @@ export function FlashcardTab({
               {index + 1} / {queue.length}
             </span>
             <span
-              className={`text-xs px-3 py-1 rounded-full font-bold tracking-wide ${memoryBucketColor(
-                activeSource === 'all' ? 'flashcard' : activeSource
-              )}`}
+              className={`text-xs px-3 py-1 rounded-full font-bold tracking-wide ${
+                bucketFilter === 'all'
+                  ? 'text-indigo-700 bg-indigo-100'
+                  : bucketFilter === 'unremembered'
+                  ? 'text-rose-700 bg-rose-100'
+                  : 'text-amber-700 bg-amber-100'
+              }`}
             >
-              {sourceLabel(activeSource)}
+              {sourceLabel(bucketFilter)}
             </span>
           </div>
 
@@ -524,6 +541,49 @@ export function FlashcardTab({
               <span className="hidden sm:inline">Ô nét chữ</span>
             </button>
 
+            {/* Bucket filter dropdown */}
+            <div className="relative" ref={bucketDropdownRef}>
+              <button
+                onClick={() => setBucketDropdownOpen((s) => !s)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
+                  bucketDropdownOpen
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : bucketFilter !== 'all'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'text-slate-700 bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+                title="Lọc theo nhóm ghi nhớ"
+              >
+                <Filter className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{sourceLabel(bucketFilter)}</span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${bucketDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {bucketDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 animate-fade-in">
+                  {BUCKET_FILTER_OPTIONS.map((opt) => {
+                    const isActive = bucketFilter === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => { setBucketFilter(opt.value); setBucketDropdownOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium transition-colors ${
+                          isActive
+                            ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${opt.dot}`} />
+                        <span>{opt.label}</span>
+                        {isActive && <Check className="w-3.5 h-3.5 ml-auto text-indigo-500" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Sort dropdown */}
             <div className="relative" ref={sortDropdownRef}>
               <button
                 onClick={() => setSortDropdownOpen((s) => !s)}

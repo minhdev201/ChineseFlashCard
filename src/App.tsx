@@ -1,44 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { FlashcardTab } from '@/components/FlashcardTab';
-import { MemoryBucketTab } from '@/components/MemoryBucketTab';
 import { AddWordTab } from '@/components/AddWordTab';
 import { WordListTab } from '@/components/WordListTab';
-import { PatternTab } from '@/components/PatternTab';
 import { StatsTab } from '@/components/StatsTab';
 import { AuthScreen } from '@/components/AuthScreen';
+import { CharacterNetworkTab } from '@/components/CharacterNetworkTab';
 import { useAuth } from '@/lib/useAuth';
 import { useVocabStore } from '@/lib/useVocabStore';
-import { usePatternStore } from '@/lib/usePatternStore';
-import type { FlashcardSource, MemoryBucket, TabKey } from '@/lib/types';
+import type { TabKey } from '@/lib/types';
 
 function App() {
   const [tab, setTab] = useState<TabKey>('flashcard');
-  const [flashcardSource, setFlashcardSource] = useState<FlashcardSource>('all');
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const store = useVocabStore(user);
-  const patternStore = usePatternStore(user);
 
-  const unrememberedCount = useMemo(
-    () => store.vocab.filter((item) => item.memory_bucket === 'unremembered').length,
-    [store.vocab]
-  );
-  const temporaryCount = useMemo(
-    () => store.vocab.filter((item) => item.memory_bucket === 'temporary').length,
-    [store.vocab]
-  );
 
-  const handleStartFocusedReview = (bucket: MemoryBucket) => {
-    setFlashcardSource(bucket);
-    setTab('flashcard');
-  };
-
-  const handleShowAllFlashcards = () => setFlashcardSource('all');
 
   const handleSignOut = async () => {
     await signOut();
     setTab('flashcard');
-    setFlashcardSource('all');
   };
 
   if (authLoading) {
@@ -76,41 +57,18 @@ function App() {
       <Sidebar
         active={tab}
         onChange={setTab}
-        unrememberedCount={unrememberedCount}
-        temporaryCount={temporaryCount}
         streak={store.streak}
         totalWords={store.vocab.length}
-        patternCount={patternStore.patterns.length}
         email={user.email}
         onSignOut={handleSignOut}
-        activeSource={flashcardSource}
-        onShowAllFlashcards={handleShowAllFlashcards}
       />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto max-w-7xl">
         {tab === 'flashcard' && (
           <FlashcardTab
             vocab={store.vocab}
-            activeSource={flashcardSource}
             onSetMemoryBucket={store.setMemoryBucket}
-            onShowAllFlashcards={handleShowAllFlashcards}
             onRecordReview={store.recordReview}
-          />
-        )}
-        {tab === 'unremembered' && (
-          <MemoryBucketTab
-            bucket="unremembered"
-            vocab={store.vocab}
-            onMove={store.setMemoryBucket}
-            onStartFocusReview={handleStartFocusedReview}
-          />
-        )}
-        {tab === 'temporary' && (
-          <MemoryBucketTab
-            bucket="temporary"
-            vocab={store.vocab}
-            onMove={store.setMemoryBucket}
-            onStartFocusReview={handleStartFocusedReview}
           />
         )}
         {tab === 'add' && (
@@ -123,14 +81,6 @@ function App() {
             onDelete={store.deleteVocab}
           />
         )}
-        {tab === 'patterns' && (
-          <PatternTab
-            patterns={patternStore.patterns}
-            onAdd={patternStore.addPattern}
-            onUpdate={patternStore.updatePattern}
-            onDelete={patternStore.deletePattern}
-          />
-        )}
         {tab === 'stats' && (
           <StatsTab
             vocab={store.vocab}
@@ -138,6 +88,9 @@ function App() {
             totalReviews={store.totalReviews}
             activity={store.activity}
           />
+        )}
+        {tab === 'network' && (
+          <CharacterNetworkTab vocab={store.vocab} />
         )}
       </main>
     </div>

@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import {
   LayoutGrid,
-  Pin,
-  SunMedium,
   PlusCircle,
   Library,
   BarChart3,
@@ -12,48 +10,34 @@ import {
   Menu,
   X,
   ChevronRight,
-  BookOpenCheck,
-  BookMarked,
+  Network,
 } from 'lucide-react';
-import type { FlashcardSource, TabKey } from '@/lib/types';
-import { memoryBucketLabel } from '@/lib/srs';
+import type { TabKey } from '@/lib/types';
 
 interface SidebarProps {
   active: TabKey;
   onChange: (tab: TabKey) => void;
-  unrememberedCount: number;
-  temporaryCount: number;
   streak: number;
   totalWords: number;
-  patternCount?: number;
   email?: string | null;
   onSignOut?: () => void;
-  activeSource: FlashcardSource;
-  onShowAllFlashcards: () => void;
 }
 
 const TABS: { key: TabKey; label: string; icon: typeof LayoutGrid; description: string }[] = [
   { key: 'flashcard', label: 'Flashcard', icon: LayoutGrid, description: 'Luyện tập flashcard & gõ chữ' },
-  { key: 'unremembered', label: 'Chưa nhớ', icon: Pin, description: 'Từ vựng cần ôn gắt gao' },
-  { key: 'temporary', label: 'Tạm nhớ', icon: SunMedium, description: 'Từ vựng đang củng cố' },
   { key: 'add', label: 'Thêm từ', icon: PlusCircle, description: 'Thêm từ vựng mới vào kho' },
   { key: 'list', label: 'Danh sách', icon: Library, description: 'Quản lý & chỉnh sửa từ vựng' },
-  { key: 'patterns', label: 'Mẫu câu', icon: BookMarked, description: 'Cấu trúc ngữ pháp & mẫu câu' },
+  { key: 'network', label: 'Mạng từ', icon: Network, description: 'Liên kết mạng lưới chữ Hán' },
   { key: 'stats', label: 'Thống kê', icon: BarChart3, description: 'Báo cáo và tiến độ học' },
 ];
 
 export function Sidebar({
   active,
   onChange,
-  unrememberedCount,
-  temporaryCount,
   streak,
   totalWords,
-  patternCount = 0,
   email,
   onSignOut,
-  activeSource,
-  onShowAllFlashcards,
 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -110,24 +94,6 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Focused mode badge if activeSource !== 'all' */}
-      {activeSource !== 'all' && (
-        <div className="mx-4 mt-3 p-3 rounded-xl bg-indigo-950/70 border border-indigo-500/30 text-indigo-200 text-xs">
-          <div className="flex items-center justify-between mb-1 font-semibold text-indigo-300">
-            <span>Chế độ ôn tập</span>
-            <button
-              onClick={onShowAllFlashcards}
-              className="text-[11px] underline hover:text-white flex items-center gap-1"
-            >
-              <BookOpenCheck className="w-3 h-3" /> Tất cả
-            </button>
-          </div>
-          <p className="text-slate-300 text-[11px]">
-            Đang lọc danh sách: <span className="font-semibold text-white">{memoryBucketLabel(activeSource)}</span>
-          </p>
-        </div>
-      )}
-
       {/* Main Navigation Items */}
       <div className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
         <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
@@ -159,33 +125,6 @@ export function Sidebar({
               </div>
 
               <div className="flex items-center gap-2 shrink-0 ml-2">
-                {t.key === 'unremembered' && unrememberedCount > 0 && (
-                  <span
-                    className={`inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full text-xs font-bold ${
-                      isActive ? 'bg-white text-rose-600' : 'bg-rose-500 text-white'
-                    }`}
-                  >
-                    {unrememberedCount}
-                  </span>
-                )}
-                {t.key === 'temporary' && temporaryCount > 0 && (
-                  <span
-                    className={`inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full text-xs font-bold ${
-                      isActive ? 'bg-white text-amber-600' : 'bg-amber-500 text-white'
-                    }`}
-                  >
-                    {temporaryCount}
-                  </span>
-                )}
-                {t.key === 'patterns' && patternCount > 0 && (
-                  <span
-                    className={`inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full text-xs font-bold ${
-                      isActive ? 'bg-white text-indigo-600' : 'bg-indigo-500 text-white'
-                    }`}
-                  >
-                    {patternCount}
-                  </span>
-                )}
                 {isActive && <ChevronRight className="w-4 h-4 opacity-80" />}
               </div>
             </button>
