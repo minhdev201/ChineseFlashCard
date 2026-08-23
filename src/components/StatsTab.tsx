@@ -37,7 +37,7 @@ export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProp
 
   // Memory bucket distribution
   const dist = [
-    { label: 'Flashcard', count: flashcardCount, color: 'bg-indigo-400' },
+    { label: 'Đã nhớ', count: flashcardCount, color: 'bg-emerald-400' },
     { label: 'Chưa nhớ', count: unrememberedCount, color: 'bg-rose-400' },
     { label: 'Tạm nhớ', count: temporaryCount, color: 'bg-amber-400' },
   ];
@@ -51,10 +51,10 @@ export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProp
       color: 'from-indigo-500 to-blue-500',
     },
     {
-      label: 'Flashcard chung',
+      label: 'Đã nhớ',
       value: flashcardCount,
       icon: Award,
-      color: 'from-indigo-500 to-cyan-500',
+      color: 'from-emerald-500 to-teal-500',
     },
     {
       label: 'Tạm nhớ',

@@ -51,12 +51,13 @@ const SORT_OPTIONS: { value: SortMode; label: string; icon: typeof Shuffle }[] =
   { value: 'random', label: 'Ngẫu nhiên', icon: Shuffle },
 ];
 
-type BucketFilter = 'all' | 'unremembered' | 'temporary';
+type BucketFilter = 'all' | 'unremembered' | 'temporary' | 'flashcard';
 
 const BUCKET_FILTER_OPTIONS: { value: BucketFilter; label: string; dot: string }[] = [
   { value: 'all',          label: 'Tất cả',   dot: 'bg-indigo-400' },
   { value: 'unremembered', label: 'Chưa nhớ', dot: 'bg-rose-400' },
   { value: 'temporary',   label: 'Tạm nhớ',  dot: 'bg-amber-400' },
+  { value: 'flashcard',   label: 'Đã nhớ',   dot: 'bg-emerald-400' },
 ];
 
 const MEMORY_ACTIONS: {
@@ -505,7 +506,9 @@ export function FlashcardTab({
                   ? 'text-indigo-700 bg-indigo-100'
                   : bucketFilter === 'unremembered'
                   ? 'text-rose-700 bg-rose-100'
-                  : 'text-amber-700 bg-amber-100'
+                  : bucketFilter === 'temporary'
+                  ? 'text-amber-700 bg-amber-100'
+                  : 'text-emerald-700 bg-emerald-100'
               }`}
             >
               {sourceLabel(bucketFilter)}
@@ -546,10 +549,14 @@ export function FlashcardTab({
               <button
                 onClick={() => setBucketDropdownOpen((s) => !s)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
-                  bucketDropdownOpen
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : bucketFilter !== 'all'
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  bucketDropdownOpen || bucketFilter !== 'all'
+                    ? bucketFilter === 'unremembered'
+                      ? 'bg-rose-50 text-rose-700 border-rose-200'
+                      : bucketFilter === 'temporary'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : bucketFilter === 'flashcard'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                     : 'text-slate-700 bg-white border-slate-200 hover:bg-slate-50'
                 }`}
                 title="Lọc theo nhóm ghi nhớ"
