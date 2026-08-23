@@ -147,6 +147,7 @@ export function FlashcardTab({
 
   const prevBucketFilter = useRef<BucketFilter>('all');
   const prevVocabLength = useRef<number>(vocab.length);
+  const prevSortMode = useRef<SortMode>(sortMode);
 
   const baseList = useMemo(() => {
     if (sortMode === 'newest') return [...filteredList].reverse();
@@ -165,8 +166,8 @@ export function FlashcardTab({
   const [showTianzige, setShowTianzige] = useState(true);
   const [touchedIds, setTouchedIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
-  const prevActiveSource = useRef<BucketFilter>(bucketFilter);
-  const prevSortMode = useRef<SortMode>(sortMode);
+  const [isJumping, setIsJumping] = useState(false);
+  const [jumpInput, setJumpInput] = useState('');
 
   // Tinder swipe gesture state
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -260,6 +261,40 @@ export function FlashcardTab({
     }, 40);
   }, [queue.length]);
 
+  const handleReshuffle = useCallback(() => {
+    setIsSwitching(true);
+    const shuffled = shuffle(filteredList);
+    setQueue(shuffled);
+    setIndex(0);
+    setFlipped(false);
+    setInput('');
+    setFeedback('none');
+    setTouchedIds(new Set());
+    setDragOffset({ x: 0, y: 0 });
+    setSwipeOutDir(null);
+    setSortMode('random');
+    setTimeout(() => setIsSwitching(false), 60);
+  }, [filteredList]);
+
+  const handleJumpSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setIsJumping(false);
+    const targetNum = parseInt(jumpInput, 10);
+    if (!isNaN(targetNum) && queue.length > 0) {
+      const clampedIndex = Math.max(0, Math.min(targetNum - 1, queue.length - 1));
+      if (clampedIndex !== index) {
+        setIsSwitching(true);
+        setFlipped(false);
+        setInput('');
+        setFeedback('none');
+        setDragOffset({ x: 0, y: 0 });
+        setSwipeOutDir(null);
+        setIndex(clampedIndex);
+        setTimeout(() => setIsSwitching(false), 40);
+      }
+    }
+  };
+
   // Pointer swipe handlers (clean linear slide, no bounce)
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -280,7 +315,6 @@ export function FlashcardTab({
     };
     isDraggingRef.current = false;
     dragOffsetRef.current = { x: 0, y: 0 };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -297,6 +331,11 @@ export function FlashcardTab({
       if (Math.abs(dx) > 8) {
         isDraggingRef.current = true;
         setIsDragging(true);
+        try {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
       }
     }
 
@@ -401,6 +440,11 @@ export function FlashcardTab({
   );
 
   const handleSortChange = (mode: SortMode) => {
+    if (mode === 'random') {
+      handleReshuffle();
+      setSortDropdownOpen(false);
+      return;
+    }
     setSortMode(mode);
     setSortDropdownOpen(false);
     setIsSwitching(true);
@@ -497,9 +541,49 @@ export function FlashcardTab({
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
           <div className="flex items-center gap-2">
-            <span className="text-base font-extrabold text-slate-800 bg-slate-100 px-3 py-1 rounded-xl">
-              {index + 1} / {queue.length}
-            </span>
+            {isJumping ? (
+              <form
+                onSubmit={handleJumpSubmit}
+                className="flex items-center gap-1.5 bg-indigo-50 border-2 border-indigo-500 rounded-xl px-2.5 py-1 shadow-md animate-fade-in"
+              >
+                <span className="text-xs font-bold text-indigo-700">Đến thẻ:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={queue.length}
+                  autoFocus
+                  value={jumpInput}
+                  onChange={(e) => setJumpInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setIsJumping(false);
+                  }}
+                  className="w-14 px-1.5 py-0.5 text-sm font-extrabold text-indigo-900 bg-white rounded-md border border-indigo-300 outline-none text-center shadow-inner"
+                  placeholder="100"
+                />
+                <span className="text-xs font-bold text-slate-500">/ {queue.length}</span>
+                <button
+                  type="submit"
+                  className="px-2.5 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors shadow-xs"
+                >
+                  Đi
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => {
+                  setJumpInput(String(index + 1));
+                  setIsJumping(true);
+                }}
+                className="flex items-center gap-1.5 text-base font-extrabold text-slate-800 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 px-3.5 py-1.5 rounded-xl transition-all border border-transparent hover:border-indigo-200 cursor-pointer shadow-xs group"
+                title="Nhấp để nhảy nhanh đến vị trí thẻ bất kỳ (ví dụ: 100)"
+              >
+                <span>{index + 1}</span>
+                <span className="text-slate-400 font-normal">/ {queue.length}</span>
+                <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md ml-1 opacity-80 group-hover:opacity-100 transition-opacity font-bold">
+                  Nhảy vị trí ↵
+                </span>
+              </button>
+            )}
             <span
               className={`text-xs px-3 py-1 rounded-full font-bold tracking-wide ${
                 bucketFilter === 'all'
@@ -589,6 +673,20 @@ export function FlashcardTab({
                 </div>
               )}
             </div>
+
+            {/* Standalone Continuous Shuffle Button */}
+            <button
+              onClick={handleReshuffle}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shadow-sm active:scale-95 ${
+                sortMode === 'random'
+                  ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20'
+                  : 'text-slate-700 bg-white border-slate-200 hover:bg-slate-50'
+              }`}
+              title="Nhấn liên tục để trộn ngẫu nhiên danh sách từ vựng ngay lập tức"
+            >
+              <Shuffle className={`w-3.5 h-3.5 ${isSwitching && sortMode === 'random' ? 'animate-spin' : ''}`} />
+              <span>Ngẫu nhiên</span>
+            </button>
 
             {/* Sort dropdown */}
             <div className="relative" ref={sortDropdownRef}>
@@ -694,16 +792,27 @@ export function FlashcardTab({
               onPointerCancel={handlePointerUpOrCancel}
             >
               {/* 3D Flip Card Scene */}
-              <div className="flip-scene w-full">
+              <div
+                className="flip-scene w-full cursor-pointer"
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (
+                    target.closest('button') ||
+                    target.closest('input') ||
+                    target.closest('textarea') ||
+                    target.closest('a')
+                  ) {
+                    return;
+                  }
+                  if (justSwipedRef.current) return;
+                  setFlipped((f) => !f);
+                }}
+              >
                 <div
                   className={`flip-card relative w-full ${flipped ? 'is-flipped' : ''} ${
                     isSwitching ? 'no-transition' : ''
                   }`}
                   style={{ minHeight: '380px' }}
-                  onClick={() => {
-                    if (justSwipedRef.current) return;
-                    setFlipped((f) => !f);
-                  }}
                 >
                   {/* Front Face */}
                   <div
@@ -869,26 +978,37 @@ export function FlashcardTab({
           </div>
 
           {/* Card Prev/Next Nav Controls */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-2 gap-2">
             <button
               onClick={goPrev}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors shadow-sm text-sm"
               title="Phím mũi tên Trái (←) hoặc Vuốt sang phải"
             >
-              <ChevronLeft className="w-4 h-4" /> Thẻ trước (←)
+              <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Thẻ trước</span> (←)
+            </button>
+            <button
+              onClick={() => {
+                setJumpInput(String(index + 1));
+                setIsJumping(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="flex items-center gap-1 px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 font-bold transition-colors text-xs"
+              title="Nhảy nhanh đến bất kỳ số thứ tự thẻ nào (ví dụ: 100)"
+            >
+              <span>Nhảy vị trí...</span>
             </button>
             <button
               onClick={() => setFlipped((f) => !f)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold hover:bg-indigo-100 transition-colors text-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold hover:bg-indigo-100 transition-colors text-sm"
             >
               <RotateCcw className="w-4 h-4" /> Lật thẻ
             </button>
             <button
               onClick={goNext}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors shadow-sm text-sm"
               title="Phím mũi tên Phải (→) hoặc Vuốt sang trái"
             >
-              Tiếp theo (→) <ChevronRight className="w-4 h-4" />
+              <span className="hidden sm:inline">Tiếp theo</span> (→) <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>

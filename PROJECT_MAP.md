@@ -21,7 +21,7 @@
     - `AddWordTab.tsx`: Component giao diện cho phép người dùng thêm từ vựng mới vào kho từ.
     - `AuthScreen.tsx`: Màn hình xác thực xử lý các thao tác đăng nhập và đăng ký tài khoản cho người dùng.
     - `CharacterNetworkTab.tsx`: Component trực quan hóa sơ đồ mạng lưới các chữ Hán và từ vựng có chung thành tố cấu tạo.
-    - `FlashcardTab.tsx`: Màn hình lật thẻ học từ vựng hỗ trợ đánh giá SRS, bộ lọc nhóm trí nhớ (Tất cả, Chưa nhớ, Tạm nhớ, Đã nhớ), màu sắc theo thanh điệu và phát âm audio.
+    - `FlashcardTab.tsx`: Màn hình lật thẻ học từ vựng hỗ trợ đánh giá SRS, bộ lọc nhóm trí nhớ (Tất cả, Chưa nhớ, Tạm nhớ, Đã nhớ), nút trộn ngẫu nhiên liên tục, tính năng nhảy nhanh vị trí thẻ, màu sắc theo thanh điệu và phát âm audio.
     - `Header.tsx`: Component thanh tiêu đề ứng dụng hiển thị streak học tập và menu người dùng.
     - `NavTabs.tsx`: Component điều hướng dạng tab cho giao diện màn hình di động.
     - `Sidebar.tsx`: Thanh điều hướng cố định bên hông cung cấp menu chính, chỉ số thống kê và thao tác tài khoản.
