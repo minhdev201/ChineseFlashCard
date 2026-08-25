@@ -6,6 +6,7 @@ import { WordListTab } from '@/components/WordListTab';
 import { StatsTab } from '@/components/StatsTab';
 import { AuthScreen } from '@/components/AuthScreen';
 import { CharacterNetworkTab } from '@/components/CharacterNetworkTab';
+import { MemoryGameTab } from '@/components/MemoryGameTab';
 import { useAuth } from '@/lib/useAuth';
 import { useVocabStore } from '@/lib/useVocabStore';
 import type { TabKey } from '@/lib/types';
@@ -91,6 +92,9 @@ function App() {
         )}
         {tab === 'network' && (
           <CharacterNetworkTab vocab={store.vocab} />
+        )}
+        {tab === 'memory-game' && (
+          <MemoryGameTab vocab={store.vocab} />
         )}
       </main>
     </div>
