@@ -64,7 +64,7 @@ function App() {
         onSignOut={handleSignOut}
       />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto max-w-7xl">
+      <main className="flex-1 p-2.5 sm:p-6 lg:p-8 min-w-0 overflow-y-auto max-w-7xl">
         {tab === 'flashcard' && (
           <FlashcardTab
             vocab={store.vocab}

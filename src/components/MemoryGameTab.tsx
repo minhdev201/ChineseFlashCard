@@ -244,9 +244,73 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     const progress = ((state.foundWords.size / totalWords) * 100).toFixed(0);
 
     return (
-      <div className="memory-game-playing-container flex flex-col lg:flex-row gap-4">
-        {/* Left info panel */}
-        <div className="lg:w-64 xl:w-72 shrink-0 flex flex-col gap-3">
+      <div className="memory-game-playing-container flex flex-col lg:flex-row gap-2 lg:gap-4 overflow-hidden">
+        {/* Mobile compact header (< lg) */}
+        <div className="lg:hidden shrink-0 flex flex-col gap-1.5 bg-white rounded-xl p-2 border border-slate-200 shadow-sm">
+          {/* Row 1: Target word banner & Quick action buttons */}
+          <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-lg px-2.5 py-1.5 text-white">
+            <div className="min-w-0 flex-1 flex items-baseline gap-2">
+              <span className="text-[10px] text-indigo-200 uppercase font-semibold shrink-0">Tìm:</span>
+              <span className="text-xl font-bold tracking-wide truncate">{currentWord.pinyin}</span>
+              <span className="text-xs text-indigo-100 truncate opacity-90">({currentWord.meaning})</span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={skipWord}
+                className="px-2 py-1 bg-white/20 hover:bg-white/30 active:bg-white/40 text-white rounded text-xs font-medium transition-colors"
+              >
+                Bỏ qua
+              </button>
+              <button
+                onClick={resetGame}
+                className="p-1 bg-rose-500/30 hover:bg-rose-500/40 text-white rounded transition-colors"
+                title="Thoát"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: Progress & Stats */}
+          <div className="flex items-center justify-between gap-2 text-xs px-1">
+            {/* Progress bar */}
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              <span className="font-bold text-indigo-600 text-[11px] shrink-0">{state.foundWords.size}/{totalWords}</span>
+              <div className="w-full bg-slate-100 rounded-full h-1.5">
+                <div
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Quick stats */}
+            <div className="flex items-center gap-2 shrink-0 font-medium text-slate-700 text-[11px]">
+              <span className="flex items-center gap-0.5" title="Điểm">
+                <Trophy className="w-3.5 h-3.5 text-indigo-500" />
+                {state.score}
+              </span>
+              <span className="flex items-center gap-0.5 font-mono" title="Thời gian">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                {formatTime(state.elapsedTime)}
+              </span>
+              {state.combo > 0 ? (
+                <span className="flex items-center gap-0.5 text-orange-600 font-bold bg-orange-100 px-1.5 py-0.5 rounded-full animate-pulse">
+                  <Flame className="w-3.5 h-3.5 text-orange-500" />
+                  x{state.combo}
+                </span>
+              ) : (
+                <span className="flex items-center gap-0.5 text-rose-500">
+                  <XCircle className="w-3.5 h-3.5" />
+                  {state.mistakes}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop left info panel (>= lg) */}
+        <div className="hidden lg:flex lg:w-64 xl:w-72 shrink-0 flex-col gap-3">
           {/* Pinyin prompt */}
           <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-5 text-white shadow-lg text-center">
             <div className="text-xs text-indigo-100 mb-1 uppercase tracking-wider font-medium">Tìm từ có pinyin</div>
@@ -269,7 +333,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
           </div>
 
           {/* Stats cards */}
-          <div className="grid grid-cols-3 lg:grid-cols-1 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
                 <Trophy className="w-5 h-5 text-indigo-500" />
@@ -314,7 +378,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
           </div>
 
           {/* Action buttons */}
-          <div className="flex lg:flex-col gap-2 mt-auto">
+          <div className="flex flex-col gap-2 mt-auto">
             <button
               onClick={skipWord}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-colors text-sm"
@@ -331,9 +395,9 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
           </div>
         </div>
 
-        {/* Right grid panel */}
-        <div className="flex-1 min-w-0 bg-white rounded-2xl p-3 border border-slate-200 shadow-sm flex flex-col">
-          <div className="memory-game-grid flex-1 grid grid-cols-5 sm:grid-cols-6 gap-2 memory-grid-container">
+        {/* Grid panel */}
+        <div className="flex-1 min-w-0 min-h-0 bg-white rounded-xl sm:rounded-2xl p-1.5 sm:p-3 border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+          <div className="memory-game-grid flex-1 grid grid-cols-5 sm:grid-cols-6 gap-1 sm:gap-2 memory-grid-container min-h-0">
             {state.grid.map((cell, index) => {
               const isCorrect = cell.state === 'correct';
               const isWrong = cell.state === 'wrong';
@@ -343,7 +407,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                   key={cell.id}
                   onClick={() => selectCell(cell.id)}
                   disabled={isCorrect}
-                  className={`memory-grid-cell flex items-center justify-center text-2xl sm:text-3xl font-bold rounded-xl border-2 transition-all ${
+                  className={`memory-grid-cell flex items-center justify-center font-bold rounded-lg sm:rounded-xl border-2 transition-all ${
                     isCorrect
                       ? 'bg-emerald-500 text-white border-emerald-600 scale-105 shadow-lg cursor-not-allowed animate-cell-pop'
                       : isWrong
