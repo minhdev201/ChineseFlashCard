@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Play, Search, RotateCcw, ArrowLeft, Trophy, Clock, XCircle, Flame, Gamepad2 } from 'lucide-react';
+import { Play, Search, RotateCcw, ArrowLeft, Trophy, Clock, XCircle, Flame, Gamepad2, CheckCircle2, Zap } from 'lucide-react';
 import type { Vocab, MemoryBucket } from '@/lib/types';
-import { useMemoryGame } from '@/lib/useMemoryGame';
+import { useMemoryGame, GAME_MODE_COUNTS, type GameMode } from '@/lib/useMemoryGame';
 
 interface MemoryGameTabProps {
   vocab: Vocab[];
@@ -12,9 +12,21 @@ type FilterBucket = 'all' | MemoryBucket;
 export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
   const { state, startGame, selectCell, skipWord, resetGame, playAgain } = useMemoryGame();
 
+  const [selectedMode, setSelectedMode] = useState<GameMode>('6x5');
   const [filterBucket, setFilterBucket] = useState<FilterBucket>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const targetCount = GAME_MODE_COUNTS[selectedMode];
+
+  const handleModeChange = (mode: GameMode) => {
+    setSelectedMode(mode);
+    const newTargetCount = GAME_MODE_COUNTS[mode];
+    if (selectedIds.size > newTargetCount) {
+      const trimmed = Array.from(selectedIds).slice(0, newTargetCount);
+      setSelectedIds(new Set(trimmed));
+    }
+  };
 
   const filteredVocab = useMemo(() => {
     let filtered = vocab;
@@ -46,7 +58,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
       if (newSet.has(id)) {
         newSet.delete(id);
       } else {
-        if (newSet.size < 30) {
+        if (newSet.size < targetCount) {
           newSet.add(id);
         }
       }
@@ -54,8 +66,8 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     });
   };
 
-  const selectAll = () => {
-    const ids = filteredVocab.slice(0, 30).map((w) => w.id);
+  const selectAllFiltered = () => {
+    const ids = filteredVocab.slice(0, targetCount).map((w) => w.id);
     setSelectedIds(new Set(ids));
   };
 
@@ -63,19 +75,20 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     setSelectedIds(new Set());
   };
 
-  const selectRandom = (count: number) => {
-    const shuffled = [...filteredVocab].sort(() => Math.random() - 0.5);
-    const ids = shuffled.slice(0, Math.min(count, 30)).map((w) => w.id);
+  const selectRandomTargetCount = () => {
+    const pool = filteredVocab.length >= targetCount ? filteredVocab : vocab;
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const ids = shuffled.slice(0, Math.min(targetCount, pool.length)).map((w) => w.id);
     setSelectedIds(new Set(ids));
   };
 
   const handleStart = () => {
-    if (selectedWords.length === 0) return;
-    startGame(selectedWords, vocab);
+    if (selectedIds.size !== targetCount) return;
+    startGame(selectedWords, selectedMode);
   };
 
   const handlePlayAgain = () => {
-    playAgain(vocab);
+    playAgain();
   };
 
   const handleNewGame = () => {
@@ -92,9 +105,9 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-
-
   if (state.phase === 'setup') {
+    const isReady = selectedIds.size === targetCount;
+
     return (
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg">
@@ -103,26 +116,87 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             <h1 className="text-3xl font-bold">Trò chơi Ghi nhớ Mặt chữ</h1>
           </div>
           <p className="text-indigo-100">
-            Chọn tối đa 30 từ từ kho, sau đó tìm từ Hán tự dựa trên gợi ý pinyin!
+            Chọn kích thước bàn chơi, chọn đúng số từ vựng cần thiết rồi bắt đầu thử thách ghi nhớ!
           </p>
         </div>
 
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-600">Đã chọn:</span>
-              <span className="text-2xl font-bold text-indigo-600">{selectedIds.size}</span>
-              <span className="text-slate-400">/</span>
-              <span className="text-lg text-slate-500">30 từ</span>
-            </div>
-            {selectedIds.size < 30 && selectedIds.size > 0 && (
-              <div className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-                ⚡ Thiếu {30 - selectedIds.size} từ — sẽ lấy thêm ngẫu nhiên khi bắt đầu
-              </div>
-            )}
+        {/* Game Mode Selector */}
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-3">
+          <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider">
+            1. Chọn chế độ bàn chơi
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            {(['6x5', '7x5', '8x5'] as const).map((modeKey) => {
+              const count = GAME_MODE_COUNTS[modeKey];
+              const isSelected = selectedMode === modeKey;
+              return (
+                <button
+                  key={modeKey}
+                  onClick={() => handleModeChange(modeKey)}
+                  className={`p-4 rounded-xl border-2 font-bold text-center transition-all ${
+                    isSelected
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-md ring-2 ring-indigo-500/20'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="text-xl sm:text-2xl font-extrabold">{modeKey}</div>
+                  <div className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
+                    {count} ô ({count} từ)
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
+        {/* Selection Status & Quick Actions */}
+        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600">2. Đã chọn từ vựng:</span>
+              <span className={`text-2xl font-bold ${isReady ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                {selectedIds.size}
+              </span>
+              <span className="text-slate-400">/</span>
+              <span className="text-lg font-bold text-slate-700">{targetCount} từ</span>
+            </div>
+
+            {isReady ? (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200 font-semibold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                Đã chọn đủ từ! Sẵn sàng chơi.
+              </div>
+            ) : (
+              <div className="text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200 font-medium">
+                ⚠️ Cần chọn thêm {targetCount - selectedIds.size} từ để bắt đầu
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 flex-wrap pt-1">
+            <button
+              onClick={selectRandomTargetCount}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg transition-all shadow hover:shadow-md"
+            >
+              <Zap className="w-4 h-4 text-yellow-300" />
+              Chọn ngẫu nhiên đủ {targetCount} từ để chơi nhanh
+            </button>
+            <button
+              onClick={selectAllFiltered}
+              className="px-3 py-2 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+            >
+              Chọn {Math.min(targetCount, filteredVocab.length)} từ đầu
+            </button>
+            <button
+              onClick={clearAll}
+              className="px-3 py-2 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+            >
+              Bỏ chọn tất cả
+            </button>
+          </div>
+        </div>
+
+        {/* Vocab Filter & List */}
         <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-4">
           <div className="flex gap-2 flex-wrap">
             {(['all', 'unremembered', 'temporary', 'flashcard'] as const).map((bucket) => {
@@ -160,27 +234,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             />
           </div>
 
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={selectAll} className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
-              Chọn tất cả
-            </button>
-            <button onClick={clearAll} className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
-              Bỏ chọn tất cả
-            </button>
-            <button onClick={() => selectRandom(10)} className="px-3 py-1.5 text-xs font-medium bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg transition-colors">
-              Chọn ngẫu nhiên 10 từ
-            </button>
-            <button onClick={() => selectRandom(20)} className="px-3 py-1.5 text-xs font-medium bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg transition-colors">
-              Chọn ngẫu nhiên 20 từ
-            </button>
-            <button onClick={() => selectRandom(30)} className="px-3 py-1.5 text-xs font-medium bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg transition-colors">
-              Chọn ngẫu nhiên 30 từ
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-96 overflow-y-auto pr-1">
             {filteredVocab.length === 0 ? (
               <div className="col-span-full text-center py-12 text-slate-400">
                 Không có từ nào phù hợp
@@ -192,16 +246,17 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                   <button
                     key={word.id}
                     onClick={() => toggleWord(word.id)}
-                    disabled={!isSelected && selectedIds.size >= 30}
+                    disabled={!isSelected && selectedIds.size >= targetCount}
                     className={`relative flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
                       isSelected
                         ? 'border-indigo-500 bg-indigo-50 shadow-md'
-                        : selectedIds.size >= 30
+                        : selectedIds.size >= targetCount
                         ? 'border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed'
                         : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/50'
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                    <div
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
                         isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white'
                       }`}
                     >
@@ -222,26 +277,51 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
           </div>
         </div>
 
-        <div className="flex justify-center">
+        {/* Start Play Button */}
+        <div className="flex flex-col items-center gap-2 pb-6">
           <button
             onClick={handleStart}
-            disabled={selectedIds.size === 0}
-            className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+            disabled={!isReady}
+            className="flex items-center gap-2 px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
           >
             <Play className="w-6 h-6" />
-            Bắt đầu chơi
+            {isReady ? `Bắt đầu chơi (Bàn ${selectedMode})` : `Cần chọn đủ ${targetCount} từ để bắt đầu`}
           </button>
         </div>
       </div>
     );
   }
 
-
-
   if (state.phase === 'playing') {
     const currentWord = state.gameWords[state.currentWordIndex];
     const totalWords = state.grid.length;
     const progress = ((state.foundWords.size / totalWords) * 100).toFixed(0);
+
+    const pinyinLen = currentWord.pinyin.length;
+    const desktopPinyinSize =
+      pinyinLen > 14
+        ? 'text-xl xl:text-2xl'
+        : pinyinLen > 10
+        ? 'text-2xl xl:text-3xl'
+        : pinyinLen > 7
+        ? 'text-3xl xl:text-4xl'
+        : 'text-4xl xl:text-5xl';
+
+    const mobilePinyinSize =
+      pinyinLen > 14
+        ? 'text-xs sm:text-sm'
+        : pinyinLen > 10
+        ? 'text-sm sm:text-base'
+        : pinyinLen > 7
+        ? 'text-base sm:text-lg'
+        : 'text-lg sm:text-xl';
+
+    const gridColsClass =
+      state.mode === '8x5'
+        ? 'grid-cols-5 sm:grid-cols-8'
+        : state.mode === '7x5'
+        ? 'grid-cols-5 sm:grid-cols-7'
+        : 'grid-cols-5 sm:grid-cols-6';
 
     return (
       <div className="memory-game-playing-container flex flex-col lg:flex-row gap-2 lg:gap-4 overflow-hidden">
@@ -251,8 +331,9 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
           <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-lg px-2.5 py-1.5 text-white">
             <div className="min-w-0 flex-1 flex items-baseline gap-2">
               <span className="text-[10px] text-indigo-200 uppercase font-semibold shrink-0">Tìm:</span>
-              <span className="text-xl font-bold tracking-wide truncate">{currentWord.pinyin}</span>
-              <span className="text-xs text-indigo-100 truncate opacity-90">({currentWord.meaning})</span>
+              <span className={`font-bold tracking-wide break-all min-w-0 ${mobilePinyinSize}`}>
+                {currentWord.pinyin}
+              </span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button
@@ -312,10 +393,11 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
         {/* Desktop left info panel (>= lg) */}
         <div className="hidden lg:flex lg:w-64 xl:w-72 shrink-0 flex-col gap-3">
           {/* Pinyin prompt */}
-          <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-5 text-white shadow-lg text-center">
+          <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-4 text-white shadow-lg text-center flex flex-col justify-center min-h-[110px] overflow-hidden">
             <div className="text-xs text-indigo-100 mb-1 uppercase tracking-wider font-medium">Tìm từ có pinyin</div>
-            <div className="text-4xl xl:text-5xl font-bold tracking-wide py-2">{currentWord.pinyin}</div>
-            <div className="text-sm text-indigo-200 mt-1">{currentWord.meaning}</div>
+            <div className={`font-bold tracking-wide py-1 break-words max-w-full leading-tight ${desktopPinyinSize}`}>
+              {currentWord.pinyin}
+            </div>
           </div>
 
           {/* Progress bar */}
@@ -397,17 +479,24 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
 
         {/* Grid panel */}
         <div className="flex-1 min-w-0 min-h-0 bg-white rounded-xl sm:rounded-2xl p-1.5 sm:p-3 border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-          <div className="memory-game-grid flex-1 grid grid-cols-5 sm:grid-cols-6 gap-1 sm:gap-2 memory-grid-container min-h-0">
+          <div className={`memory-game-grid flex-1 grid ${gridColsClass} gap-1 sm:gap-2 memory-grid-container min-h-0`}>
             {state.grid.map((cell, index) => {
               const isCorrect = cell.state === 'correct';
               const isWrong = cell.state === 'wrong';
+              const hanziLen = cell.word.hanzi.length;
+              const hanziSizeClass =
+                hanziLen >= 4
+                  ? 'text-xs sm:text-sm'
+                  : hanziLen === 3
+                  ? 'text-sm sm:text-lg'
+                  : 'text-lg sm:text-2xl';
 
               return (
                 <button
                   key={cell.id}
                   onClick={() => selectCell(cell.id)}
                   disabled={isCorrect}
-                  className={`memory-grid-cell flex items-center justify-center font-bold rounded-lg sm:rounded-xl border-2 transition-all ${
+                  className={`memory-grid-cell flex items-center justify-center font-bold rounded-lg sm:rounded-xl border-2 transition-all p-1 ${
                     isCorrect
                       ? 'bg-emerald-500 text-white border-emerald-600 scale-105 shadow-lg cursor-not-allowed animate-cell-pop'
                       : isWrong
@@ -418,7 +507,20 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                     animationDelay: `${index * 20}ms`,
                   }}
                 >
-                  {cell.word.hanzi}
+                  {isCorrect ? (
+                    <div className="flex flex-col items-center justify-center w-full min-w-0 h-full leading-tight text-center">
+                      <span className={`font-bold truncate max-w-full ${hanziSizeClass}`}>
+                        {cell.word.hanzi}
+                      </span>
+                      <span className="text-[10px] sm:text-xs font-normal opacity-95 truncate max-w-full mt-0.5 leading-none px-0.5">
+                        {cell.word.meaning}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className={`truncate max-w-full px-0.5 ${hanziSizeClass}`}>
+                      {cell.word.hanzi}
+                    </span>
+                  )}
                 </button>
               );
             })}

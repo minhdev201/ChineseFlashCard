@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Vocab } from './types';
 
+export type GameMode = '6x5' | '7x5' | '8x5';
+
+export const GAME_MODE_COUNTS: Record<GameMode, number> = {
+  '6x5': 30,
+  '7x5': 35,
+  '8x5': 40,
+};
+
 export interface GridCell {
   id: number;
   word: Vocab;
@@ -10,6 +18,7 @@ export interface GridCell {
 
 export interface MemoryGameState {
   phase: 'setup' | 'playing' | 'result';
+  mode: GameMode;
   selectedWords: Vocab[];
   gameWords: Vocab[];
   grid: GridCell[];
@@ -23,13 +32,13 @@ export interface MemoryGameState {
   elapsedTime: number;
 }
 
-const GRID_SIZE = 30;
 const POINTS_PER_CORRECT = 10;
 const COMBO_MULTIPLIER = 2;
 
 export function useMemoryGame() {
   const [state, setState] = useState<MemoryGameState>({
     phase: 'setup',
+    mode: '6x5',
     selectedWords: [],
     gameWords: [],
     grid: [],
@@ -57,31 +66,17 @@ export function useMemoryGame() {
     return () => clearInterval(timer);
   }, [state.phase]);
 
-  const fillToThirty = useCallback((selected: Vocab[], allVocab: Vocab[]): Vocab[] => {
-    if (selected.length >= GRID_SIZE) {
-      return selected.slice(0, GRID_SIZE);
-    }
-
-    const selectedIds = new Set(selected.map((w) => w.id));
-    const available = allVocab.filter((w) => !selectedIds.has(w.id));
-    const needed = GRID_SIZE - selected.length;
-
-    const shuffled = [...available].sort(() => Math.random() - 0.5);
-    const filled = shuffled.slice(0, needed);
-
-    return [...selected, ...filled];
-  }, []);
-
   const startGame = useCallback(
-    (selected: Vocab[], allVocab: Vocab[]) => {
-      if (selected.length === 0) return;
+    (selected: Vocab[], mode: GameMode) => {
+      const targetCount = GAME_MODE_COUNTS[mode];
+      if (selected.length < targetCount) return;
 
-      const filled = fillToThirty(selected, allVocab);
+      const wordsToUse = selected.slice(0, targetCount);
       // Shuffle word prompt order so each game is different
-      const gameWords = [...filled].sort(() => Math.random() - 0.5);
-      const selectedIds = new Set(selected.map((w) => w.id));
+      const gameWords = [...wordsToUse].sort(() => Math.random() - 0.5);
+      const selectedIds = new Set(wordsToUse.map((w) => w.id));
 
-      const grid: GridCell[] = filled.map((word, index) => ({
+      const grid: GridCell[] = wordsToUse.map((word, index) => ({
         id: index,
         word,
         isTarget: selectedIds.has(word.id),
@@ -100,7 +95,8 @@ export function useMemoryGame() {
 
       setState({
         phase: 'playing',
-        selectedWords: selected,
+        mode,
+        selectedWords: wordsToUse,
         gameWords,
         grid,
         currentWordIndex: 0,
@@ -113,7 +109,7 @@ export function useMemoryGame() {
         elapsedTime: 0,
       });
     },
-    [fillToThirty]
+    []
   );
 
   const selectCell = useCallback((cellId: number) => {
@@ -200,6 +196,7 @@ export function useMemoryGame() {
   const resetGame = useCallback(() => {
     setState({
       phase: 'setup',
+      mode: '6x5',
       selectedWords: [],
       gameWords: [],
       grid: [],
@@ -215,12 +212,49 @@ export function useMemoryGame() {
   }, []);
 
   const playAgain = useCallback(
-    (allVocab: Vocab[]) => {
-      if (state.selectedWords.length > 0) {
-        startGame(state.selectedWords, allVocab);
-      }
+    () => {
+      setState((prev) => {
+        if (prev.selectedWords.length > 0) {
+          const targetCount = GAME_MODE_COUNTS[prev.mode];
+          const wordsToUse = prev.selectedWords.slice(0, targetCount);
+          const gameWords = [...wordsToUse].sort(() => Math.random() - 0.5);
+          const selectedIds = new Set(wordsToUse.map((w) => w.id));
+
+          const grid: GridCell[] = wordsToUse.map((word, index) => ({
+            id: index,
+            word,
+            isTarget: selectedIds.has(word.id),
+            state: 'idle' as const,
+          }));
+
+          for (let i = grid.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [grid[i], grid[j]] = [grid[j], grid[i]];
+          }
+
+          grid.forEach((cell, idx) => {
+            cell.id = idx;
+          });
+
+          return {
+            ...prev,
+            phase: 'playing',
+            gameWords,
+            grid,
+            currentWordIndex: 0,
+            foundWords: new Set(),
+            score: 0,
+            combo: 0,
+            maxCombo: 0,
+            mistakes: 0,
+            startTime: Date.now(),
+            elapsedTime: 0,
+          };
+        }
+        return prev;
+      });
     },
-    [state.selectedWords, startGame]
+    []
   );
 
   return {
@@ -232,4 +266,6 @@ export function useMemoryGame() {
     playAgain,
   };
 }
+
+
 
