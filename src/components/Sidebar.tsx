@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Network,
   Gamepad2,
+  PenTool,
 } from 'lucide-react';
 import type { TabKey } from '@/lib/types';
 
@@ -26,7 +27,8 @@ interface SidebarProps {
 
 const TABS: { key: TabKey; label: string; icon: typeof LayoutGrid; description: string }[] = [
   { key: 'flashcard', label: 'Flashcard', icon: LayoutGrid, description: 'Luyện tập flashcard & gõ chữ' },
-  { key: 'memory-game', label: 'Trò chơi', icon: Gamepad2, description: 'Ghi nhớ mặt chữ qua trò chơi' },
+  { key: 'memory-game', label: 'Lật thẻ', icon: Gamepad2, description: 'Ghi nhớ mặt chữ qua trò chơi' },
+  { key: 'pinyin-game', label: 'Gõ Hán ngữ', icon: PenTool, description: 'Nhìn Pinyin gõ chữ Hán' },
   { key: 'add', label: 'Thêm từ', icon: PlusCircle, description: 'Thêm từ vựng mới vào kho' },
   { key: 'list', label: 'Danh sách', icon: Library, description: 'Quản lý & chỉnh sửa từ vựng' },
   { key: 'network', label: 'Mạng từ', icon: Network, description: 'Liên kết mạng lưới chữ Hán' },

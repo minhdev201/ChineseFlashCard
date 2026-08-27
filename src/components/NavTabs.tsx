@@ -1,4 +1,4 @@
-import { LayoutGrid, PlusCircle, Library, BarChart3, Network, Gamepad2 } from 'lucide-react';
+import { LayoutGrid, PlusCircle, Library, BarChart3, Network, Gamepad2, PenTool } from 'lucide-react';
 import type { TabKey } from '@/lib/types';
 
 interface NavTabsProps {
@@ -8,7 +8,8 @@ interface NavTabsProps {
 
 const TABS: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
   { key: 'flashcard', label: 'Flashcard', icon: LayoutGrid },
-  { key: 'memory-game', label: 'Trò chơi', icon: Gamepad2 },
+  { key: 'memory-game', label: 'Lật thẻ', icon: Gamepad2 },
+  { key: 'pinyin-game', label: 'Gõ chữ', icon: PenTool },
   { key: 'add', label: 'Thêm từ', icon: PlusCircle },
   { key: 'list', label: 'Thư viện từ', icon: Library },
   { key: 'network', label: 'Mạng từ', icon: Network },

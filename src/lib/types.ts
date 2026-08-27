@@ -31,5 +31,4 @@ export interface ActivityLog {
   added: number;
 }
 
-export type FlashcardSource = 'all' | MemoryBucket;
-export type TabKey = 'flashcard' | 'add' | 'list' | 'stats' | 'network' | 'memory-game';
+export type TabKey = 'flashcard' | 'add' | 'list' | 'stats' | 'network' | 'memory-game' | 'pinyin-game';
