@@ -1,0 +1,480 @@
+/* =========================================================
+   Official Google Chrome Dark Theme Recreation
+   ========================================================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --chrome-bg: #202124;
+  --chrome-card-bg: #303134;
+  --chrome-card-hover: #3c4043;
+  --chrome-text-primary: #e8eaed;
+  --chrome-text-secondary: #9aa0a6;
+  --chrome-text-muted: #5f6368;
+  --chrome-border: #3c4043;
+  --chrome-blue: #8ab4f8;
+  --chrome-blue-hover: #aecbfa;
+  --font-chrome: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-chinese: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* Muted Stealth Vocab Colors (Blends into background) */
+  --vocab-hanzi: #70757a;
+  --vocab-hanzi-hover: #9aa0a6;
+  --vocab-subtle: #5f6368;
+  --vocab-subtle-hover: #80868b;
+  --vocab-unblur: #80868b;
+}
+
+body {
+  font-family: var(--font-chrome);
+  background-color: var(--chrome-bg);
+  color: var(--chrome-text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  overflow-x: hidden;
+}
+
+/* =========================================================
+   Non-interactive helper (disables clicks on background elements)
+   ========================================================= */
+.non-interactive {
+  pointer-events: none !important;
+  user-select: none !important;
+  cursor: default !important;
+}
+
+/* =========================================================
+   Top Navigation Header (Matches Screenshot - Decorative)
+   ========================================================= */
+.chrome-header {
+  height: 56px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.header-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-link {
+  color: var(--chrome-text-primary);
+  font-size: 13px;
+  line-height: 24px;
+  opacity: 0.9;
+  padding: 0 4px;
+  cursor: default;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--chrome-text-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+/* Avatar with Cyan Ring matching screenshot */
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #005060;
+  border: 2px solid #24c1e0;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 0 4px rgba(36, 193, 224, 0.4);
+  cursor: default;
+}
+
+/* =========================================================
+   Main Content Area
+   ========================================================= */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 36px;
+  padding-bottom: 24px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Google Monochrome Logo */
+.logo-wrapper {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.google-logo {
+  height: 92px;
+  width: 272px;
+}
+
+/* =========================================================
+   White Google Search Box (Decorative / Non-interactive)
+   ========================================================= */
+.search-box-container {
+  width: 100%;
+  max-width: 680px;
+  padding: 0 16px;
+  margin-bottom: 24px;
+}
+
+.search-form {
+  background-color: #ffffff;
+  border: 1px solid transparent;
+  border-radius: 24px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 16px;
+  box-shadow: 0 1px 6px 0 rgba(32, 33, 36, 0.28);
+  cursor: default;
+}
+
+.search-icon-left {
+  color: #5f6368;
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.search-input-placeholder {
+  flex: 1;
+  color: #5f6368;
+  font-family: var(--font-chrome);
+  font-size: 15px;
+  cursor: default;
+}
+
+.search-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-tool-btn {
+  background: transparent;
+  border: none;
+  color: #5f6368;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+/* AI Mode Pill Button */
+.ai-mode-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 16px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-chrome);
+  color: #3c4043;
+  cursor: default;
+}
+
+.ai-mode-pill svg {
+  color: #1a73e8;
+}
+
+/* =========================================================
+   Shortcuts Grid (Decorative / Non-interactive)
+   ========================================================= */
+.shortcuts-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 14px;
+  max-width: 680px;
+  width: 100%;
+  padding: 0 12px;
+}
+
+.shortcut-tile {
+  width: 80px;
+  height: 92px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.shortcut-icon-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #303134;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.custom-shortcut-icon.red-e {
+  color: #ea4335;
+  font-family: var(--font-chrome);
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: -1px;
+}
+
+.shortcut-title {
+  color: var(--chrome-text-primary);
+  font-size: 12px;
+  font-family: var(--font-chrome);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 76px;
+  line-height: 16px;
+}
+
+/* =========================================================
+   INTERACTIVE VOCABULARY ZONE (RED BOXED AREA)
+   Subtle & Low-Contrast (Blends into background)
+   ========================================================= */
+.spacious-vocab-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 760px;
+  padding: 16px 16px 12px;
+  margin-top: 12px;
+  pointer-events: auto;
+}
+
+.spacious-card {
+  background: transparent;
+  border: none;
+  border-radius: 20px;
+  padding: 16px 24px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: none;
+}
+
+/* Big Hanzi Character Row (Subtle low-contrast color) */
+.hanzi-display-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.hanzi-big {
+  font-family: var(--font-chinese);
+  font-size: clamp(44px, 5.5vw, 68px);
+  font-weight: 500;
+  color: var(--vocab-hanzi);
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.hanzi-big:hover {
+  color: var(--vocab-hanzi-hover);
+  transform: scale(1.02);
+}
+
+.audio-btn {
+  background: transparent;
+  border: none;
+  color: var(--vocab-subtle);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.audio-btn:hover {
+  color: var(--vocab-subtle-hover);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* =========================================================
+   BLURRED PINYIN & MEANING INTERACTIVE AREA
+   Low-contrast & Blended into background
+   ========================================================= */
+.blur-interactive-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  width: 100%;
+  max-width: 520px;
+  margin: 4px 0 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.blur-interactive-area:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.pinyin-display {
+  font-size: clamp(16px, 2.2vw, 22px);
+  color: var(--vocab-hanzi);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  transition: filter 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s, color 0.25s;
+}
+
+.meaning-display {
+  font-size: clamp(14px, 1.8vw, 18px);
+  color: var(--vocab-hanzi);
+  font-weight: 400;
+  transition: filter 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s, color 0.25s;
+}
+
+/* Blur effect applied to BOTH Pinyin and Meaning */
+.pinyin-display.blurred,
+.meaning-display.blurred {
+  filter: blur(8px);
+  opacity: 0.18;
+  user-select: none;
+}
+
+/* Unblur when hovering over blur area OR revealed */
+.blur-interactive-area:hover .pinyin-display.blurred,
+.blur-interactive-area:hover .meaning-display.blurred,
+.pinyin-display.revealed,
+.meaning-display.revealed {
+  filter: blur(0) !important;
+  opacity: 0.9 !important;
+  color: var(--vocab-unblur) !important;
+}
+
+.hover-tip-text {
+  font-size: 11px;
+  color: #4a4d51;
+  margin-top: 6px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.blur-interactive-area:hover .hover-tip-text {
+  opacity: 0;
+}
+
+/* Actions in Spacious Zone (Discreet & Muted) */
+.spacious-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stealth-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--vocab-subtle);
+  font-size: 12px;
+  font-family: var(--font-chrome);
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stealth-action-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--vocab-subtle-hover);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.stealth-action-btn.primary {
+  color: var(--vocab-subtle);
+}
+
+.stealth-action-btn.primary:hover {
+  color: var(--vocab-hanzi-hover);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.vocab-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+}
+
+.loading-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vocab-subtle);
+  animation: pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.3; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+.hidden {
+  display: none !important;
+}

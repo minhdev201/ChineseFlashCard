@@ -1,0 +1,8 @@
+<!-- Placeholder icon - Replace with actual icon images -->
+<!-- This is an SVG placeholder for demonstration -->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" fill="#3b82f6" rx="24"/>
+  <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle" dy=".3em">
+    中
+  </text>
+</svg>

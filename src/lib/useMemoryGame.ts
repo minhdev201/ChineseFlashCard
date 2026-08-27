@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Vocab } from './types';
 
 export type GameMode = '6x5' | '7x5' | '8x5';
@@ -8,6 +8,8 @@ export const GAME_MODE_COUNTS: Record<GameMode, number> = {
   '7x5': 35,
   '8x5': 40,
 };
+
+export const TIME_PRESSURE_SECONDS = 15;
 
 export interface GridCell {
   id: number;
@@ -19,6 +21,7 @@ export interface GridCell {
 export interface MemoryGameState {
   phase: 'setup' | 'playing' | 'result';
   mode: GameMode;
+  timePressure: boolean;
   selectedWords: Vocab[];
   gameWords: Vocab[];
   grid: GridCell[];
@@ -30,6 +33,7 @@ export interface MemoryGameState {
   mistakes: number;
   startTime: number;
   elapsedTime: number;
+  timeLeft: number; // seconds remaining for current word (time pressure mode)
 }
 
 const POINTS_PER_CORRECT = 10;
@@ -39,6 +43,7 @@ export function useMemoryGame() {
   const [state, setState] = useState<MemoryGameState>({
     phase: 'setup',
     mode: '6x5',
+    timePressure: false,
     selectedWords: [],
     gameWords: [],
     grid: [],
@@ -50,9 +55,14 @@ export function useMemoryGame() {
     mistakes: 0,
     startTime: 0,
     elapsedTime: 0,
+    timeLeft: TIME_PRESSURE_SECONDS,
   });
 
-  // Timer effect
+  // Ref to latest state for use in intervals without stale closure
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Elapsed timer effect
   useEffect(() => {
     if (state.phase !== 'playing') return;
 
@@ -66,8 +76,57 @@ export function useMemoryGame() {
     return () => clearInterval(timer);
   }, [state.phase]);
 
+  // Time pressure countdown effect — re-runs whenever currentWordIndex changes OR timePressure toggles
+  useEffect(() => {
+    if (state.phase !== 'playing' || !state.timePressure) return;
+
+    // Reset timeLeft when word changes
+    setState((prev) => ({ ...prev, timeLeft: TIME_PRESSURE_SECONDS }));
+
+    const interval = setInterval(() => {
+      setState((prev) => {
+        if (prev.phase !== 'playing' || !prev.timePressure) return prev;
+
+        const newTimeLeft = prev.timeLeft - 1;
+
+        if (newTimeLeft <= 0) {
+          // Time's up — mark as mistake, move to next word (or end)
+          const currentWord = prev.gameWords[prev.currentWordIndex];
+          const newGameWords = [...prev.gameWords, currentWord]; // requeue at end
+          const nextIndex = prev.currentWordIndex + 1;
+
+          if (nextIndex >= prev.gameWords.length) {
+            // End game
+            return {
+              ...prev,
+              gameWords: newGameWords,
+              currentWordIndex: nextIndex,
+              mistakes: prev.mistakes + 1,
+              combo: 0,
+              timeLeft: TIME_PRESSURE_SECONDS,
+              phase: 'result',
+            };
+          }
+
+          return {
+            ...prev,
+            gameWords: newGameWords,
+            currentWordIndex: nextIndex,
+            mistakes: prev.mistakes + 1,
+            combo: 0,
+            timeLeft: TIME_PRESSURE_SECONDS,
+          };
+        }
+
+        return { ...prev, timeLeft: newTimeLeft };
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [state.phase, state.timePressure, state.currentWordIndex]);
+
   const startGame = useCallback(
-    (selected: Vocab[], mode: GameMode) => {
+    (selected: Vocab[], mode: GameMode, timePressure: boolean) => {
       const targetCount = GAME_MODE_COUNTS[mode];
       if (selected.length < targetCount) return;
 
@@ -96,6 +155,7 @@ export function useMemoryGame() {
       setState({
         phase: 'playing',
         mode,
+        timePressure,
         selectedWords: wordsToUse,
         gameWords,
         grid,
@@ -107,6 +167,7 @@ export function useMemoryGame() {
         mistakes: 0,
         startTime: Date.now(),
         elapsedTime: 0,
+        timeLeft: TIME_PRESSURE_SECONDS,
       });
     },
     []
@@ -145,6 +206,7 @@ export function useMemoryGame() {
             combo: newCombo,
             maxCombo: Math.max(prev.maxCombo, newCombo),
             phase: 'result',
+            timeLeft: TIME_PRESSURE_SECONDS,
           };
         }
 
@@ -156,6 +218,7 @@ export function useMemoryGame() {
           score: newScore,
           combo: newCombo,
           maxCombo: Math.max(prev.maxCombo, newCombo),
+          timeLeft: TIME_PRESSURE_SECONDS,
         };
       } else {
         setTimeout(() => {
@@ -189,6 +252,7 @@ export function useMemoryGame() {
         gameWords: newGameWords,
         currentWordIndex: nextIndex,
         combo: 0,
+        timeLeft: TIME_PRESSURE_SECONDS,
       };
     });
   }, []);
@@ -197,6 +261,7 @@ export function useMemoryGame() {
     setState({
       phase: 'setup',
       mode: '6x5',
+      timePressure: false,
       selectedWords: [],
       gameWords: [],
       grid: [],
@@ -208,6 +273,7 @@ export function useMemoryGame() {
       mistakes: 0,
       startTime: 0,
       elapsedTime: 0,
+      timeLeft: TIME_PRESSURE_SECONDS,
     });
   }, []);
 
@@ -249,6 +315,7 @@ export function useMemoryGame() {
             mistakes: 0,
             startTime: Date.now(),
             elapsedTime: 0,
+            timeLeft: TIME_PRESSURE_SECONDS,
           };
         }
         return prev;
@@ -266,6 +333,7 @@ export function useMemoryGame() {
     playAgain,
   };
 }
+
 
 
 

@@ -3,7 +3,7 @@ import {
   LayoutGrid,
   PlusCircle,
   Library,
-  BarChart3,
+  LayoutDashboard,
   Flame,
   BookOpen,
   LogOut,
@@ -30,7 +30,7 @@ const TABS: { key: TabKey; label: string; icon: typeof LayoutGrid; description: 
   { key: 'add', label: 'Thêm từ', icon: PlusCircle, description: 'Thêm từ vựng mới vào kho' },
   { key: 'list', label: 'Danh sách', icon: Library, description: 'Quản lý & chỉnh sửa từ vựng' },
   { key: 'network', label: 'Mạng từ', icon: Network, description: 'Liên kết mạng lưới chữ Hán' },
-  { key: 'stats', label: 'Thống kê', icon: BarChart3, description: 'Báo cáo và tiến độ học' },
+  { key: 'stats', label: 'Dashboard', icon: LayoutDashboard, description: 'Tiến độ, thành tích & biểu đồ' },
 ];
 
 export function Sidebar({

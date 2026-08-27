@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
-import { Play, Search, RotateCcw, ArrowLeft, Trophy, Clock, XCircle, Flame, Gamepad2, CheckCircle2, Zap } from 'lucide-react';
+import { Play, Search, RotateCcw, ArrowLeft, Trophy, Clock, XCircle, Flame, Gamepad2, CheckCircle2, Zap, Timer } from 'lucide-react';
 import type { Vocab, MemoryBucket } from '@/lib/types';
-import { useMemoryGame, GAME_MODE_COUNTS, type GameMode } from '@/lib/useMemoryGame';
+import { useMemoryGame, GAME_MODE_COUNTS, TIME_PRESSURE_SECONDS, type GameMode } from '@/lib/useMemoryGame';
+import { RewardOverlay, ComboFlashBanner, ConfettiRain } from './RewardEffects';
+import { useRewardEffects } from '@/lib/useRewardEffects';
 
 interface MemoryGameTabProps {
   vocab: Vocab[];
@@ -11,11 +13,13 @@ type FilterBucket = 'all' | MemoryBucket;
 
 export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
   const { state, startGame, selectCell, skipWord, resetGame, playAgain } = useMemoryGame();
+  const { bursts, popups, comboFlashKey, comboForFlash, triggerCorrect, removeBurst, removePopup, resetEffects } = useRewardEffects();
 
   const [selectedMode, setSelectedMode] = useState<GameMode>('6x5');
   const [filterBucket, setFilterBucket] = useState<FilterBucket>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [timePressure, setTimePressure] = useState(false);
 
   const targetCount = GAME_MODE_COUNTS[selectedMode];
 
@@ -84,14 +88,16 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
 
   const handleStart = () => {
     if (selectedIds.size !== targetCount) return;
-    startGame(selectedWords, selectedMode);
+    startGame(selectedWords, selectedMode, timePressure);
   };
 
   const handlePlayAgain = () => {
+    resetEffects();
     playAgain();
   };
 
   const handleNewGame = () => {
+    resetEffects();
     resetGame();
     setSelectedIds(new Set());
     setSearchQuery('');
@@ -147,6 +153,52 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               );
             })}
           </div>
+        </div>
+
+        {/* Time Pressure Option */}
+        <div
+          onClick={() => setTimePressure((v) => !v)}
+          className={`cursor-pointer rounded-xl p-4 border-2 transition-all select-none ${
+            timePressure
+              ? 'border-rose-500 bg-gradient-to-br from-rose-50 to-orange-50 shadow-md ring-2 ring-rose-400/20'
+              : 'border-slate-200 bg-white hover:border-rose-300 hover:bg-rose-50/30'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                timePressure ? 'bg-rose-500' : 'bg-slate-100'
+              }`}>
+                <Timer className={`w-5 h-5 ${timePressure ? 'text-white' : 'text-slate-400'}`} />
+              </div>
+              <div>
+                <div className={`font-bold text-sm ${
+                  timePressure ? 'text-rose-700' : 'text-slate-700'
+                }`}>
+                  Áp lực thời gian (Time Pressure)
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  Mỗi từ chỉ có {TIME_PRESSURE_SECONDS}s — hết giờ tự sang từ tiếp & tính sai
+                </div>
+              </div>
+            </div>
+            {/* Toggle switch */}
+            <div className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
+              timePressure ? 'bg-rose-500' : 'bg-slate-200'
+            }`}>
+              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${
+                timePressure ? 'left-6' : 'left-0.5'
+              }`} />
+            </div>
+          </div>
+          {timePressure && (
+            <div className="mt-3 flex items-start gap-2 bg-rose-100 rounded-lg p-2.5 text-xs text-rose-700">
+              <Flame className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+              <span>
+                Áp lực thời gian cực ngắn ép não vào trạng thái <strong>"Chiến đấu hoặc Bỏ chạy"</strong> — xóa tan buồn ngủ ngay lập tức!
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Selection Status & Quick Actions */}
@@ -323,12 +375,38 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
         ? 'grid-cols-5 sm:grid-cols-7'
         : 'grid-cols-5 sm:grid-cols-6';
 
+    // Time pressure helpers
+    const timePct = state.timePressure ? (state.timeLeft / TIME_PRESSURE_SECONDS) * 100 : 100;
+    const isUrgent = state.timePressure && state.timeLeft <= 5;
+    const timerBarColor = state.timePressure
+      ? state.timeLeft <= 5
+        ? 'bg-rose-500'
+        : state.timeLeft <= 10
+        ? 'bg-amber-400'
+        : 'bg-emerald-500'
+      : 'bg-indigo-500';
+
     return (
+      <>
       <div className="memory-game-playing-container flex flex-col lg:flex-row gap-2 lg:gap-4 overflow-hidden">
         {/* Mobile compact header (< lg) */}
         <div className="lg:hidden shrink-0 flex flex-col gap-1.5 bg-white rounded-xl p-2 border border-slate-200 shadow-sm">
+          {/* Countdown timer bar (time pressure) */}
+          {state.timePressure && (
+            <div className="relative w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ${timerBarColor} ${isUrgent ? 'animate-pulse' : ''}`}
+                style={{ width: `${timePct}%` }}
+              />
+            </div>
+          )}
+
           {/* Row 1: Target word banner & Quick action buttons */}
-          <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-lg px-2.5 py-1.5 text-white">
+          <div className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-white transition-colors ${
+            isUrgent
+              ? 'bg-gradient-to-r from-rose-600 to-orange-500'
+              : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600'
+          }`}>
             <div className="min-w-0 flex-1 flex items-baseline gap-2">
               <span className="text-[10px] text-indigo-200 uppercase font-semibold shrink-0">Tìm:</span>
               <span className={`font-bold tracking-wide break-all min-w-0 ${mobilePinyinSize}`}>
@@ -336,6 +414,11 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               </span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
+              {state.timePressure && (
+                <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${isUrgent ? 'bg-white/30 text-white animate-pulse' : 'bg-white/20 text-white'}`}>
+                  {state.timeLeft}s
+                </span>
+              )}
               <button
                 onClick={skipWord}
                 className="px-2 py-1 bg-white/20 hover:bg-white/30 active:bg-white/40 text-white rounded text-xs font-medium transition-colors"
@@ -399,6 +482,29 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               {currentWord.pinyin}
             </div>
           </div>
+
+          {/* Time pressure countdown (desktop) */}
+          {state.timePressure && (
+            <div className={`rounded-xl p-3 border shadow-sm transition-colors ${
+              isUrgent ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className={`flex items-center gap-1 font-medium ${isUrgent ? 'text-rose-600' : 'text-slate-500'}`}>
+                  <Timer className="w-3.5 h-3.5" />
+                  Thời gian
+                </span>
+                <span className={`font-bold font-mono text-lg ${isUrgent ? 'text-rose-600 animate-pulse' : 'text-emerald-600'}`}>
+                  {state.timeLeft}s
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-3 rounded-full transition-all duration-1000 ${timerBarColor} ${isUrgent ? 'animate-pulse' : ''}`}
+                  style={{ width: `${timePct}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Progress bar */}
           <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
@@ -494,7 +600,18 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               return (
                 <button
                   key={cell.id}
-                  onClick={() => selectCell(cell.id)}
+                  onClick={(e) => {
+                    const prevCombo = state.combo;
+                    selectCell(cell.id);
+                    // We trigger optimistically: if the word matches current target
+                    const currentWord = state.gameWords[state.currentWordIndex];
+                    if (cell.word.id === currentWord.id && cell.state !== 'correct') {
+                      const newCombo = prevCombo + 1;
+                      const comboBonus = Math.floor(newCombo / 3) * 2;
+                      const pts = 10 + comboBonus;
+                      triggerCorrect(e.clientX, e.clientY, pts, newCombo);
+                    }
+                  }}
                   disabled={isCorrect}
                   className={`memory-grid-cell flex items-center justify-center font-bold rounded-lg sm:rounded-xl border-2 transition-all p-1 ${
                     isCorrect
@@ -527,8 +644,15 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
           </div>
         </div>
       </div>
+
+      {/* Reward effects overlay */}
+      <RewardOverlay bursts={bursts} popups={popups} onBurstDone={removeBurst} onPopupDone={removePopup} />
+      <ComboFlashBanner combo={comboForFlash} flashKey={comboFlashKey} />
+    </>
     );
   }
+
+
 
 
 
@@ -540,10 +664,15 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
 
     return (
       <div className="max-w-3xl mx-auto space-y-6">
+        {/* Confetti rain on completion */}
+        <ConfettiRain duration={5000} />
+
         <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-8 text-white shadow-2xl">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Trophy className="w-12 h-12 text-yellow-300" />
-            <h1 className="text-4xl font-bold">Hoàn thành!</h1>
+            <div style={{ animation: 'comboGlow 1s ease-in-out infinite' }}>
+              <Trophy className="w-14 h-14 text-yellow-300 drop-shadow-lg" style={{ filter: 'drop-shadow(0 0 12px rgba(253,224,71,0.9))' }} />
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight">Hoàn thành! 🎉</h1>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mt-6">
