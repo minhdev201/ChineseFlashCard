@@ -1,15 +1,27 @@
-import { useState, useMemo } from 'react';
-import { Play, Search, RotateCcw, ArrowLeft, Trophy, Clock, XCircle, Flame, Gamepad2, CheckCircle2, Zap, Timer, Target } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Play, Search, RotateCcw, ArrowLeft, Trophy, Clock, XCircle, Flame, Gamepad2, CheckCircle2, Zap, Timer, Target, Sparkles, Shuffle } from 'lucide-react';
 import type { Vocab, MemoryBucket } from '@/lib/types';
 import { useMemoryGame, GAME_MODE_COUNTS, TIME_PRESSURE_SECONDS, type GameMode } from '@/lib/useMemoryGame';
 import { RewardOverlay, ComboFlashBanner, ConfettiRain } from './RewardEffects';
 import { useRewardEffects } from '@/lib/useRewardEffects';
+import { startBGM, stopBGM, playWrongSound, playVictorySound } from '@/lib/soundEffects';
 
 interface MemoryGameTabProps {
   vocab: Vocab[];
 }
 
 type FilterBucket = 'all' | MemoryBucket;
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = result[i];
+    result[i] = result[j];
+    result[j] = temp;
+  }
+  return result;
+}
 
 export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
   const { state, startGame, selectCell, skipWord, resetGame, playAgain } = useMemoryGame();
@@ -81,9 +93,46 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
 
   const selectRandomTargetCount = () => {
     const pool = filteredVocab.length >= targetCount ? filteredVocab : vocab;
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const shuffled = shuffleArray(pool);
     const ids = shuffled.slice(0, Math.min(targetCount, pool.length)).map((w) => w.id);
     setSelectedIds(new Set(ids));
+  };
+
+  /** Bổ sung ngẫu nhiên thêm các từ còn thiếu CHỈ từ nhóm Tạm nhớ */
+  const fillFromTemporary = () => {
+    const needed = targetCount - selectedIds.size;
+    if (needed <= 0) return;
+
+    // Chỉ lấy các từ thuộc nhóm Tạm nhớ (temporary) chưa được chọn
+    const temporaryCandidates = vocab.filter(
+      (w) => !selectedIds.has(w.id) && w.memory_bucket === 'temporary'
+    );
+
+    const shuffled = shuffleArray(temporaryCandidates);
+    const chosenIds = shuffled.slice(0, needed).map((w) => w.id);
+
+    const newSet = new Set(selectedIds);
+    chosenIds.forEach((id) => newSet.add(id));
+
+    setSelectedIds(newSet);
+  };
+
+  /** Chọn toàn bộ từ trong bộ lọc hiện tại và bù ngẫu nhiên CHỈ từ nhóm Tạm nhớ cho đủ số lượng */
+  const selectAllFilteredAndFill = () => {
+    const initialIds = filteredVocab.map((w) => w.id);
+    const newSet = new Set(initialIds);
+    const needed = targetCount - newSet.size;
+
+    if (needed > 0) {
+      // Chỉ lấy thêm từ nhóm Tạm nhớ (temporary)
+      const temporaryCandidates = vocab.filter(
+        (w) => !newSet.has(w.id) && w.memory_bucket === 'temporary'
+      );
+      const shuffled = shuffleArray(temporaryCandidates);
+      shuffled.slice(0, needed).forEach((w) => newSet.add(w.id));
+    }
+
+    setSelectedIds(newSet);
   };
 
   const handleStart = () => {
@@ -104,6 +153,24 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     setFilterBucket('all');
   };
 
+  // Audio lifecycle effect
+  useEffect(() => {
+    if (state.phase === 'playing') {
+      startBGM(state.timePressure ? 'energetic' : 'relaxed');
+    } else {
+      stopBGM();
+    }
+    return () => {
+      stopBGM();
+    };
+  }, [state.phase, state.timePressure]);
+
+  useEffect(() => {
+    if (state.phase === 'result') {
+      playVictorySound();
+    }
+  }, [state.phase]);
+
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -116,9 +183,9 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
 
     return (
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl border border-indigo-500/20 relative overflow-hidden">
+        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl border border-indigo-500/20 relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="absolute -right-6 -bottom-6 w-40 h-40 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
               <Gamepad2 className="w-6 h-6" />
             </div>
@@ -240,13 +307,35 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             )}
           </div>
 
-          <div className="flex gap-2 flex-wrap pt-1">
+          <div className="flex gap-2 flex-wrap pt-1 items-center">
+            {!isReady && selectedIds.size > 0 && (
+              <button
+                onClick={fillFromTemporary}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl transition-all shadow-md shadow-amber-500/20 active:scale-95 animate-pulse"
+                title="Lấy ngẫu nhiên thêm các từ CHỈ từ nhóm Tạm nhớ để đủ số lượng"
+              >
+                <Sparkles className="w-4 h-4 text-yellow-200" />
+                Lấy ngẫu nhiên thêm {targetCount - selectedIds.size} từ (Tạm nhớ)
+              </button>
+            )}
+
+            {filterBucket !== 'all' && filteredVocab.length > 0 && filteredVocab.length < targetCount && (
+              <button
+                onClick={selectAllFilteredAndFill}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl transition-colors"
+                title={`Chọn hết ${filteredVocab.length} từ hiện tại và bù ngẫu nhiên từ nhóm Tạm nhớ cho đủ ${targetCount} từ`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                Chọn tất cả {filteredVocab.length} từ này + bù từ Tạm nhớ cho đủ {targetCount}
+              </button>
+            )}
+
             <button
               onClick={selectRandomTargetCount}
               className="flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl transition-all shadow hover:shadow-md"
             >
               <Zap className="w-4 h-4 text-amber-300" />
-              Chọn ngẫu nhiên đủ {targetCount} từ để chơi nhanh
+              Chọn ngẫu nhiên đủ {targetCount} từ
             </button>
             <button
               onClick={selectAllFiltered}
@@ -266,12 +355,13 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
         {/* Vocab Filter & List */}
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-4">
           <div className="flex gap-2 flex-wrap">
-            {(['all', 'unremembered', 'temporary', 'flashcard'] as const).map((bucket) => {
+            {(['all', 'unremembered', 'temporary', 'flashcard', 'warehouse'] as const).map((bucket) => {
               const labels = {
                 all: 'Tất cả',
                 unremembered: 'Chưa nhớ',
                 temporary: 'Tạm nhớ',
                 flashcard: 'Đã nhớ',
+                warehouse: 'Trong kho',
               };
               const isActive = filterBucket === bucket;
               return (
@@ -631,14 +721,18 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                   key={cell.id}
                   onClick={(e) => {
                     const prevCombo = state.combo;
-                    selectCell(cell.id);
-                    // We trigger optimistically: if the word matches current target
                     const currentWord = state.gameWords[state.currentWordIndex];
-                    if (cell.word.id === currentWord.id && cell.state !== 'correct') {
+                    const isTarget = currentWord && cell.word.id === currentWord.id && cell.state !== 'correct';
+
+                    selectCell(cell.id);
+
+                    if (isTarget) {
                       const newCombo = prevCombo + 1;
                       const comboBonus = Math.floor(newCombo / 3) * 2;
                       const pts = 10 + comboBonus;
                       triggerCorrect(e.clientX, e.clientY, pts, newCombo);
+                    } else if (cell.state !== 'correct') {
+                      playWrongSound();
                     }
                   }}
                   disabled={isCorrect}
@@ -699,6 +793,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Hoàn thành thử thách! 🎉</h1>
           </div>
+
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-6">
             <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-3.5 sm:p-4 text-center">

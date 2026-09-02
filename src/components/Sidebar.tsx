@@ -15,6 +15,8 @@ import {
   PenTool,
 } from 'lucide-react';
 import type { TabKey } from '@/lib/types';
+import { GlobalMusicBar } from './GlobalMusicBar';
+
 
 interface SidebarProps {
   active: TabKey;
@@ -134,6 +136,11 @@ export function Sidebar({
             </button>
           );
         })}
+      </div>
+
+      {/* Global Background Music Player Widget */}
+      <div className="px-3 py-2 border-t border-slate-800/80 bg-slate-900/60">
+        <GlobalMusicBar />
       </div>
 
       {/* User Footer Profile & SignOut */}

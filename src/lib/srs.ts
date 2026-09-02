@@ -14,18 +14,21 @@ const addDays = (days: number) => {
 export function memoryBucketLabel(bucket: MemoryBucket): string {
   if (bucket === 'unremembered') return 'Chưa nhớ';
   if (bucket === 'temporary') return 'Tạm nhớ';
+  if (bucket === 'warehouse') return 'Trong kho';
   return 'Đã nhớ';
 }
 
 export function memoryBucketColor(bucket: MemoryBucket): string {
-  if (bucket === 'unremembered') return 'text-rose-700 bg-rose-100';
-  if (bucket === 'temporary') return 'text-amber-700 bg-amber-100';
-  return 'text-emerald-700 bg-emerald-100';
+  if (bucket === 'unremembered') return 'text-rose-700 bg-rose-100 border-rose-200';
+  if (bucket === 'temporary') return 'text-amber-700 bg-amber-100 border-amber-200';
+  if (bucket === 'warehouse') return 'text-purple-700 bg-purple-100 border-purple-200';
+  return 'text-emerald-700 bg-emerald-100 border-emerald-200';
 }
 
 export function memoryBucketDescription(bucket: MemoryBucket): string {
   if (bucket === 'unremembered') return 'Danh sách từ cần ôn tập gắt gao.';
   if (bucket === 'temporary') return 'Danh sách từ đang trong giai đoạn củng cố.';
+  if (bucket === 'warehouse') return 'Danh sách từ đã lưu trữ trong kho.';
   return 'Danh sách từ đã ghi nhớ thành công.';
 }
 

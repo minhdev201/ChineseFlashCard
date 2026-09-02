@@ -3,6 +3,17 @@ import type { Vocab } from './types';
 
 export const PINYIN_GAME_TIME_LIMIT = 15;
 
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = result[i];
+    result[i] = result[j];
+    result[j] = temp;
+  }
+  return result;
+}
+
 export interface PinyinGameQuestion {
   word: Vocab;
   userAnswer: string;
@@ -124,10 +135,11 @@ export function usePinyinGame() {
 
   const startGame = useCallback(
     (selectedWords: Vocab[], count: number, timePressure: boolean) => {
-      const shuffled = [...selectedWords].sort(() => Math.random() - 0.5);
-      const chosen = shuffled.slice(0, Math.min(count, selectedWords.length));
+      const shuffledPool = shuffleArray(selectedWords);
+      const chosen = shuffledPool.slice(0, Math.min(count, selectedWords.length));
+      const finalShuffled = shuffleArray(chosen);
 
-      const questions: PinyinGameQuestion[] = chosen.map((word) => ({
+      const questions: PinyinGameQuestion[] = finalShuffled.map((word) => ({
         word,
         userAnswer: '',
         status: 'pending',
@@ -312,7 +324,7 @@ export function usePinyinGame() {
   const playAgain = useCallback(() => {
     setState((prev) => {
       const words = prev.questions.map((q) => q.word);
-      const shuffled = [...words].sort(() => Math.random() - 0.5);
+      const shuffled = shuffleArray(words);
       const questions: PinyinGameQuestion[] = shuffled.map((word) => ({
         word,
         userAnswer: '',

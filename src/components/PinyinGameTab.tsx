@@ -20,17 +20,46 @@ import {
 } from 'lucide-react';
 import type { Vocab, MemoryBucket } from '@/lib/types';
 import { usePinyinGame, PINYIN_GAME_TIME_LIMIT } from '@/lib/usePinyinGame';
-import { playTing, speak } from '@/lib/speech';
-import { RewardOverlay, ComboFlashBanner, ConfettiRain } from './RewardEffects';
+import { speak } from '@/lib/speech';
+import { RewardOverlay, ConfettiRain } from './RewardEffects';
 import { useRewardEffects } from '@/lib/useRewardEffects';
+import { startBGM, stopBGM, playWrongSound, playVictorySound } from '@/lib/soundEffects';
 
 interface PinyinGameTabProps {
   vocab: Vocab[];
+  onSetMemoryBucket?: (id: string, bucket: MemoryBucket) => Promise<void>;
 }
 
 type FilterBucket = 'all' | MemoryBucket;
 
-export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
+const BUCKET_OPTIONS: { bucket: MemoryBucket; label: string; activeClass: string; inactiveClass: string }[] = [
+  {
+    bucket: 'unremembered',
+    label: 'Chưa nhớ',
+    activeClass: 'bg-rose-600 text-white shadow-sm font-bold',
+    inactiveClass: 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80',
+  },
+  {
+    bucket: 'temporary',
+    label: 'Tạm nhớ',
+    activeClass: 'bg-amber-600 text-white shadow-sm font-bold',
+    inactiveClass: 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/80',
+  },
+  {
+    bucket: 'flashcard',
+    label: 'Đã nhớ',
+    activeClass: 'bg-emerald-600 text-white shadow-sm font-bold',
+    inactiveClass: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80',
+  },
+  {
+    bucket: 'warehouse',
+    label: 'Trong kho',
+    activeClass: 'bg-purple-600 text-white shadow-sm font-bold',
+    inactiveClass: 'bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80',
+  },
+];
+
+export function PinyinGameTab({ vocab, onSetMemoryBucket }: PinyinGameTabProps) {
   const {
     state,
     startGame,
@@ -60,6 +89,7 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [timePressure, setTimePressure] = useState(false);
   const [showTianzige, setShowTianzige] = useState(true);
+  const [localOverrides, setLocalOverrides] = useState<Record<string, MemoryBucket>>({});
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -72,6 +102,24 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
       return () => clearTimeout(t);
     }
   }, [state.phase, state.currentIndex]);
+
+  // Audio lifecycle effect
+  useEffect(() => {
+    if (state.phase === 'playing') {
+      startBGM(state.timePressure ? 'energetic' : 'relaxed');
+    } else {
+      stopBGM();
+    }
+    return () => {
+      stopBGM();
+    };
+  }, [state.phase, state.timePressure]);
+
+  useEffect(() => {
+    if (state.phase === 'result') {
+      playVictorySound();
+    }
+  }, [state.phase]);
 
   const filteredVocab = useMemo(() => {
     let filtered = vocab;
@@ -149,7 +197,6 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
 
     const { isCorrect, points, combo } = checkAnswer(state.currentInput);
     if (isCorrect) {
-      playTing(true);
       if (inputRef.current) {
         const rect = inputRef.current.getBoundingClientRect();
         triggerCorrect(rect.left + rect.width / 2, rect.top + rect.height / 2, points, combo);
@@ -162,7 +209,7 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
         advanceNext();
       }, 1200);
     } else {
-      playTing(false);
+      playWrongSound();
     }
   };
 
@@ -186,9 +233,9 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
     return (
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Header Hero */}
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl border border-indigo-500/20 relative overflow-hidden">
+        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl border border-indigo-500/20 relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="absolute -right-6 -bottom-6 w-40 h-40 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="flex items-center gap-3.5 mb-2">
+          <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shadow-inner shrink-0">
               <PenTool className="w-6 h-6" />
             </div>
@@ -295,12 +342,13 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
           </div>
 
           <div className="flex gap-2 flex-wrap">
-            {(['all', 'unremembered', 'temporary', 'flashcard'] as const).map((bucket) => {
+            {(['all', 'unremembered', 'temporary', 'flashcard', 'warehouse'] as const).map((bucket) => {
               const labels = {
                 all: 'Tất cả từ',
                 unremembered: 'Chưa nhớ',
                 temporary: 'Tạm nhớ',
                 flashcard: 'Đã nhớ',
+                warehouse: 'Trong kho',
               };
               const isActive = filterBucket === bucket;
               return (
@@ -389,6 +437,16 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
       </div>
     );
   }
+
+  const handleQuickBucketChange = async (wordId: string, bucket: MemoryBucket) => {
+    // 1. Instant 0ms optimistic UI feedback
+    setLocalOverrides((prev) => ({ ...prev, [wordId]: bucket }));
+    if (onSetMemoryBucket) {
+      onSetMemoryBucket(wordId, bucket).catch((err) => {
+        console.error('Failed to update bucket:', err);
+      });
+    }
+  };
 
   // ─────────────────────────────────────────────
   // PLAYING PHASE
@@ -645,6 +703,36 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
                 )}
               </button>
             </div>
+
+            {/* Quick Memory Status Switcher for Current Word */}
+            <div className="w-full mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5 text-indigo-500" />
+                Trạng thái từ này:
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {BUCKET_OPTIONS.map((opt) => {
+                  const activeBucket =
+                    localOverrides[currentQ.word.id] ||
+                    vocab.find((w) => w.id === currentQ.word.id)?.memory_bucket ||
+                    currentQ.word.memory_bucket;
+                  const isCurrent = activeBucket === opt.bucket;
+                  return (
+                    <button
+                      key={opt.bucket}
+                      type="button"
+                      onClick={() => handleQuickBucketChange(currentQ.word.id, opt.bucket)}
+                      className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all ${
+                        isCurrent ? opt.activeClass : opt.inactiveClass
+                      }`}
+                      title={`Chuyển "${currentQ.word.hanzi}" vào ${opt.label}`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -655,7 +743,6 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
           onBurstDone={removeBurst}
           onPopupDone={removePopup}
         />
-        <ComboFlashBanner combo={comboForFlash} flashKey={comboFlashKey} />
       </>
     );
   }
@@ -745,7 +832,7 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
             {state.questions.map((q, idx) => {
               const wasCorrect = q.status === 'correct';
               return (
-                <div key={idx} className="py-3 flex items-center justify-between gap-3">
+                <div key={idx} className="py-3 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-3 min-w-0">
                     <button
                       onClick={() => handlePronounce(q.word.hanzi)}
@@ -765,7 +852,31 @@ export function PinyinGameTab({ vocab }: PinyinGameTabProps) {
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
+                  <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-end">
+                    {/* Quick status selector */}
+                    <div className="flex items-center gap-1">
+                      {BUCKET_OPTIONS.map((opt) => {
+                        const activeBucket =
+                          localOverrides[q.word.id] ||
+                          vocab.find((w) => w.id === q.word.id)?.memory_bucket ||
+                          q.word.memory_bucket;
+                        const isCurrent = activeBucket === opt.bucket;
+                        return (
+                          <button
+                            key={opt.bucket}
+                            type="button"
+                            onClick={() => handleQuickBucketChange(q.word.id, opt.bucket)}
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all ${
+                              isCurrent ? opt.activeClass : opt.inactiveClass
+                            }`}
+                            title={`Chuyển "${q.word.hanzi}" vào ${opt.label}`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     {wasCorrect ? (
                       <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                         <Check className="w-3.5 h-3.5" /> Đúng

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Search, Volume2, Pencil, Trash2, X, AlertTriangle, Copy, Check, FileText } from 'lucide-react';
-import type { Vocab } from '@/lib/types';
+import type { Vocab, MemoryBucket } from '@/lib/types';
 import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
 import { speak } from '@/lib/speech';
 import { hasNumericTones, numericPinyinToMarked } from '@/lib/pinyin';
@@ -229,6 +229,7 @@ function EditModal({
   const [pinyin, setPinyin] = useState(vocab.pinyin);
   const [meaning, setMeaning] = useState(vocab.meaning);
   const [structure, setStructure] = useState(vocab.structure || '');
+  const [memoryBucket, setMemoryBucket] = useState<MemoryBucket>(vocab.memory_bucket);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
@@ -263,6 +264,18 @@ function EditModal({
               className="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </EditField>
+          <EditField label="Nhóm ghi nhớ">
+            <select
+              value={memoryBucket}
+              onChange={(e) => setMemoryBucket(e.target.value as MemoryBucket)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm font-medium bg-white"
+            >
+              <option value="unremembered">Chưa nhớ (Cần ôn tập gắt gao)</option>
+              <option value="temporary">Tạm nhớ (Đang củng cố)</option>
+              <option value="flashcard">Đã nhớ (Đã thuộc vững)</option>
+              <option value="warehouse">Trong kho (Lưu trữ)</option>
+            </select>
+          </EditField>
           <EditField label="Cấu trúc ngữ pháp">
             <textarea
               value={structure}
@@ -287,6 +300,7 @@ function EditModal({
                 pinyin: pinyin.trim(),
                 meaning: meaning.trim(),
                 structure: structure.trim() || null,
+                memory_bucket: memoryBucket,
               })
             }
             className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"

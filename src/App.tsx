@@ -8,6 +8,7 @@ import { AuthScreen } from '@/components/AuthScreen';
 import { CharacterNetworkTab } from '@/components/CharacterNetworkTab';
 import { MemoryGameTab } from '@/components/MemoryGameTab';
 import { PinyinGameTab } from '@/components/PinyinGameTab';
+import { YouTubeBackgroundPlayer } from '@/components/YouTubeBackgroundPlayer';
 import { useAuth } from '@/lib/useAuth';
 import { useVocabStore } from '@/lib/useVocabStore';
 import type { TabKey } from '@/lib/types';
@@ -98,11 +99,15 @@ function App() {
           <MemoryGameTab vocab={store.vocab} />
         )}
         {tab === 'pinyin-game' && (
-          <PinyinGameTab vocab={store.vocab} />
+          <PinyinGameTab vocab={store.vocab} onSetMemoryBucket={store.setMemoryBucket} />
         )}
       </main>
+
+      {/* Global hidden YouTube audio host */}
+      <YouTubeBackgroundPlayer />
     </div>
   );
 }
+
 
 export default App;

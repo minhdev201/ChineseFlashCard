@@ -49,7 +49,8 @@ async function bumpActivity(userId: string, kind: 'reviewed' | 'added') {
     await supabase
       .from('activity_log')
       .update({ [kind]: (data[kind] || 0) + 1 })
-      .eq('id', data.id);
+      .eq('user_id', userId)
+      .eq('date', date);
   } else {
     await supabase.from('activity_log').insert({ user_id: userId, date, reviewed: 0, added: 0, [kind]: 1 });
   }
@@ -153,22 +154,30 @@ export function useVocabStore(user: User | null) {
 
   const updateVocab = useCallback(
     async (id: string, patch: Partial<Vocab>) => {
+      // 1. Instant optimistic update
+      setVocab((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+
       const allowed: Record<string, unknown> = {};
       for (const k of ['hanzi', 'pinyin', 'meaning', 'structure', 'memory_bucket']) {
         if (k in patch) allowed[k] = patch[k as keyof Vocab];
       }
       const { error } = await supabase.from('vocab').update(allowed).eq('id', id);
-      if (error) throw error;
-      await refresh();
+      if (error) {
+        await refresh();
+        throw error;
+      }
     },
     [refresh]
   );
 
   const deleteVocab = useCallback(
     async (id: string) => {
+      setVocab((prev) => prev.filter((c) => c.id !== id));
       const { error } = await supabase.from('vocab').delete().eq('id', id);
-      if (error) throw error;
-      await refresh();
+      if (error) {
+        await refresh();
+        throw error;
+      }
     },
     [refresh]
   );
@@ -176,25 +185,39 @@ export function useVocabStore(user: User | null) {
   const setMemoryBucket = useCallback(
     async (id: string, memoryBucket: MemoryBucket) => {
       if (!user) return;
-      const card = vocab.find((c) => c.id === id);
-      if (!card) return;
-      const { error } = await supabase
-        .from('vocab')
-        .update({
-          memory_bucket: memoryBucket,
-          last_reviewed_at: todayStr(),
-        })
-        .eq('id', id);
-      if (error) throw error;
-      await supabase
-        .from('app_state')
-        .update({ total_reviews: totalReviews + 1 })
-        .eq('user_id', user.id);
-      await bumpActivity(user.id, 'reviewed');
-      await bumpStreak(user.id);
-      await refresh();
+      const today = todayStr();
+
+      // 1. Instant optimistic state update (0ms latency)
+      setVocab((prev) =>
+        prev.map((c) =>
+          c.id === id ? { ...c, memory_bucket: memoryBucket, last_reviewed_at: today } : c
+        )
+      );
+      setTotalReviews((prev) => prev + 1);
+
+      // 2. Perform DB updates in parallel in the background without blocking UI
+      try {
+        await Promise.all([
+          supabase
+            .from('vocab')
+            .update({
+              memory_bucket: memoryBucket,
+              last_reviewed_at: today,
+            })
+            .eq('id', id),
+          supabase
+            .from('app_state')
+            .update({ total_reviews: totalReviews + 1 })
+            .eq('user_id', user.id),
+          bumpActivity(user.id, 'reviewed'),
+          bumpStreak(user.id),
+        ]);
+      } catch (err) {
+        console.error('Error syncing memory bucket:', err);
+        await refresh();
+      }
     },
-    [user, vocab, totalReviews, refresh]
+    [user, totalReviews, refresh]
   );
 
   const recordReview = useCallback(async () => {

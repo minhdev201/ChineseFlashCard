@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import {
   Flame, BookOpen, Award, Brain, AlertCircle, TrendingUp,
   Star, Target, CheckCircle2, Lock, Trophy,
-  BarChart3, Calendar, Sparkles,
+  BarChart3, Calendar, Sparkles, Archive,
 } from 'lucide-react';
 import type { ActivityLog, Vocab } from '@/lib/types';
 
@@ -40,7 +40,7 @@ interface Badge {
 
 function getBadges(vocab: Vocab[], streak: number, totalReviews: number): Badge[] {
   const total = vocab.length;
-  const mastered = vocab.filter((v) => v.memory_bucket === 'flashcard').length;
+  const mastered = vocab.filter((v) => v.memory_bucket === 'flashcard' || v.memory_bucket === 'warehouse').length;
   return [
     { id: 'first',    emoji: '🌱', label: 'Mầm non',       desc: 'Thêm từ đầu tiên',        unlocked: total >= 1,   category: 'vocab' },
     { id: 'ten',      emoji: '📚', label: 'Học sinh',       desc: '10 từ vựng',               unlocked: total >= 10,  category: 'vocab' },
@@ -109,6 +109,7 @@ export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProp
 
   /* ── Derived stats ── */
   const flashcardCount   = vocab.filter((v) => v.memory_bucket === 'flashcard').length;
+  const warehouseCount   = vocab.filter((v) => v.memory_bucket === 'warehouse').length;
   const unrememberedCount = vocab.filter((v) => v.memory_bucket === 'unremembered').length;
   const temporaryCount   = vocab.filter((v) => v.memory_bucket === 'temporary').length;
   const totalDist = Math.max(1, vocab.length);
@@ -256,14 +257,15 @@ export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProp
         {/* Quick stat cards */}
         <div className="sm:col-span-2 grid grid-cols-2 gap-3">
           {[
-            { label: 'Tổng từ', value: vocab.length, icon: BookOpen, grad: 'from-indigo-500 to-blue-500', sub: 'trong kho từ' },
+            { label: 'Tổng từ', value: vocab.length, icon: BookOpen, grad: 'from-indigo-500 to-blue-500', sub: 'toàn bộ từ' },
             { label: 'Đã nhớ vững', value: flashcardCount, icon: Award, grad: 'from-emerald-500 to-teal-500', sub: `${Math.round(flashcardCount / totalDist * 100)}% tổng số` },
+            { label: 'Trong kho', value: warehouseCount, icon: Archive, grad: 'from-purple-500 to-indigo-600', sub: `${Math.round(warehouseCount / totalDist * 100)}% lưu trữ` },
             { label: 'Tạm nhớ', value: temporaryCount, icon: Brain, grad: 'from-amber-500 to-orange-500', sub: 'đang học' },
             { label: 'Chưa nhớ', value: unrememberedCount, icon: AlertCircle, grad: 'from-rose-500 to-pink-500', sub: 'cần ôn lại' },
           ].map((m, i) => {
             const Icon = m.icon;
             return (
-              <div key={i} className="bg-white rounded-xl border border-slate-200 p-3.5 hover:shadow-md transition-shadow">
+              <div key={i} className={`bg-white rounded-xl border border-slate-200 p-3.5 hover:shadow-md transition-shadow ${i === 0 ? 'col-span-2 sm:col-span-1' : ''}`}>
                 <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${m.grad} flex items-center justify-center mb-2.5 shadow-sm`}>
                   <Icon className="w-4.5 h-4.5 text-white w-[18px] h-[18px]" />
                 </div>
@@ -285,6 +287,7 @@ export function StatsTab({ vocab, streak, totalReviews, activity }: StatsTabProp
         <div className="space-y-3.5">
           {[
             { label: '✅ Đã nhớ vững', count: flashcardCount, color: 'bg-gradient-to-r from-emerald-400 to-teal-500', textColor: 'text-emerald-700' },
+            { label: '📦 Trong kho', count: warehouseCount, color: 'bg-gradient-to-r from-purple-400 to-indigo-500', textColor: 'text-purple-700' },
             { label: '🧠 Tạm nhớ', count: temporaryCount, color: 'bg-gradient-to-r from-amber-400 to-orange-400', textColor: 'text-amber-700' },
             { label: '📖 Chưa nhớ', count: unrememberedCount, color: 'bg-gradient-to-r from-rose-400 to-pink-500', textColor: 'text-rose-700' },
           ].map((d) => (

@@ -21,10 +21,12 @@ import {
   ArrowUpNarrowWide,
   ChevronDown,
   Filter,
+  Archive,
 } from 'lucide-react';
 import type { MemoryBucket, Vocab } from '@/lib/types';
 import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
-import { playTing, speak } from '@/lib/speech';
+import { speak } from '@/lib/speech';
+import { playCorrectSound, playWrongSound } from '@/lib/soundEffects';
 
 interface FlashcardTabProps {
   vocab: Vocab[];
@@ -51,13 +53,14 @@ const SORT_OPTIONS: { value: SortMode; label: string; icon: typeof Shuffle }[] =
   { value: 'random', label: 'Ngẫu nhiên', icon: Shuffle },
 ];
 
-type BucketFilter = 'all' | 'unremembered' | 'temporary' | 'flashcard';
+type BucketFilter = 'all' | 'unremembered' | 'temporary' | 'flashcard' | 'warehouse';
 
 const BUCKET_FILTER_OPTIONS: { value: BucketFilter; label: string; dot: string }[] = [
   { value: 'all',          label: 'Tất cả',   dot: 'bg-indigo-400' },
   { value: 'unremembered', label: 'Chưa nhớ', dot: 'bg-rose-400' },
   { value: 'temporary',   label: 'Tạm nhớ',  dot: 'bg-amber-400' },
   { value: 'flashcard',   label: 'Đã nhớ',   dot: 'bg-emerald-400' },
+  { value: 'warehouse',   label: 'Trong kho', dot: 'bg-purple-400' },
 ];
 
 const MEMORY_ACTIONS: {
@@ -95,6 +98,15 @@ const MEMORY_ACTIONS: {
       icon: CheckCheck,
       classes: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20',
       savedClasses: 'bg-emerald-800 text-white ring-2 ring-emerald-300 shadow-inner font-bold',
+    },
+    {
+      bucket: 'warehouse',
+      label: 'Trong kho (4)',
+      savedLabel: 'Đã lưu Trong kho',
+      hint: 'Chỉ từ Đã nhớ',
+      icon: Archive,
+      classes: 'bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-600/20',
+      savedClasses: 'bg-purple-800 text-white ring-2 ring-purple-300 shadow-inner font-bold',
     },
   ];
 
@@ -410,13 +422,13 @@ export function FlashcardTab({
 
     if (isCorrect) {
       setFeedback('correct');
-      playTing(true);
+      playCorrectSound();
       setFlipped(true);
       if (autoSpeak) speak(current.hanzi);
       onRecordReview?.();
     } else {
       setFeedback('wrong');
-      playTing(false);
+      playWrongSound();
       setShaking(true);
       setTimeout(() => setShaking(false), 400);
     }
@@ -503,6 +515,7 @@ export function FlashcardTab({
       } else if (e.key === '1') handleSetBucket('unremembered');
       else if (e.key === '2') handleSetBucket('temporary');
       else if (e.key === '3') handleSetBucket('flashcard');
+      else if (e.key === '4') handleSetBucket('warehouse');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -592,18 +605,14 @@ export function FlashcardTab({
                   ? 'text-rose-700 bg-rose-100'
                   : bucketFilter === 'temporary'
                   ? 'text-amber-700 bg-amber-100'
+                  : bucketFilter === 'warehouse'
+                  ? 'text-purple-700 bg-purple-100'
                   : 'text-emerald-700 bg-emerald-100'
               }`}
             >
               {sourceLabel(bucketFilter)}
             </span>
           </div>
-
-          {touchedCount > 0 && (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-              Đã tương tác: {touchedCount}
-            </span>
-          )}
         </div>
 
         {/* Progress Bar & Actions */}
@@ -638,6 +647,8 @@ export function FlashcardTab({
                       ? 'bg-rose-50 text-rose-700 border-rose-200'
                       : bucketFilter === 'temporary'
                       ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : bucketFilter === 'warehouse'
+                      ? 'bg-purple-50 text-purple-700 border-purple-200'
                       : bucketFilter === 'flashcard'
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       : 'bg-indigo-50 text-indigo-700 border-indigo-200'
@@ -950,11 +961,12 @@ export function FlashcardTab({
             </div>
           </div>
 
-          {/* Quick Memory Rating Buttons */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Quick Memory Rating Buttons (4 Fixed Columns - No Layout Shift) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {MEMORY_ACTIONS.map((action) => {
               const Icon = action.icon;
               const isSaved = current.memory_bucket === action.bucket;
+              const isWarehouseAction = action.bucket === 'warehouse';
               return (
                 <button
                   key={action.bucket}

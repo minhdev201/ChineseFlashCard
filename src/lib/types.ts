@@ -16,7 +16,7 @@ export interface Vocab {
   created_at: string;
 }
 
-export type MemoryBucket = 'flashcard' | 'unremembered' | 'temporary';
+export type MemoryBucket = 'flashcard' | 'unremembered' | 'temporary' | 'warehouse';
 
 export interface AppState {
   user_id: string;

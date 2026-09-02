@@ -11,6 +11,17 @@ export const GAME_MODE_COUNTS: Record<GameMode, number> = {
 
 export const TIME_PRESSURE_SECONDS = 15;
 
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = result[i];
+    result[i] = result[j];
+    result[j] = temp;
+  }
+  return result;
+}
+
 export interface GridCell {
   id: number;
   word: Vocab;
@@ -132,7 +143,7 @@ export function useMemoryGame() {
 
       const wordsToUse = selected.slice(0, targetCount);
       // Shuffle word prompt order so each game is different
-      const gameWords = [...wordsToUse].sort(() => Math.random() - 0.5);
+      const gameWords = shuffleArray(wordsToUse);
       const selectedIds = new Set(wordsToUse.map((w) => w.id));
 
       const grid: GridCell[] = wordsToUse.map((word, index) => ({
@@ -143,12 +154,8 @@ export function useMemoryGame() {
       }));
 
       // Shuffle grid cell positions independently
-      for (let i = grid.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [grid[i], grid[j]] = [grid[j], grid[i]];
-      }
-
-      grid.forEach((cell, idx) => {
+      const shuffledGrid = shuffleArray(grid);
+      shuffledGrid.forEach((cell, idx) => {
         cell.id = idx;
       });
 
@@ -283,7 +290,7 @@ export function useMemoryGame() {
         if (prev.selectedWords.length > 0) {
           const targetCount = GAME_MODE_COUNTS[prev.mode];
           const wordsToUse = prev.selectedWords.slice(0, targetCount);
-          const gameWords = [...wordsToUse].sort(() => Math.random() - 0.5);
+          const gameWords = shuffleArray(wordsToUse);
           const selectedIds = new Set(wordsToUse.map((w) => w.id));
 
           const grid: GridCell[] = wordsToUse.map((word, index) => ({
@@ -293,12 +300,8 @@ export function useMemoryGame() {
             state: 'idle' as const,
           }));
 
-          for (let i = grid.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [grid[i], grid[j]] = [grid[j], grid[i]];
-          }
-
-          grid.forEach((cell, idx) => {
+          const shuffledGrid = shuffleArray(grid);
+          shuffledGrid.forEach((cell, idx) => {
             cell.id = idx;
           });
 

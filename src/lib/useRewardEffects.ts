@@ -4,6 +4,7 @@
  * (satisfying react-refresh/only-export-components).
  */
 import { useCallback, useRef, useState } from 'react';
+import { playCorrectSound, playComboMilestoneSound } from './soundEffects';
 
 interface BurstData { id: number; x: number; y: number; }
 interface ScorePopupData { id: number; x: number; y: number; points: number; combo: number; }
@@ -31,6 +32,9 @@ export function useRewardEffects() {
         lastMilestoneRef.current = combo;
         setComboForFlash(combo);
         setComboFlashKey((k) => k + 1);
+        playComboMilestoneSound(combo);
+      } else {
+        playCorrectSound(combo);
       }
     },
     []
@@ -44,3 +48,4 @@ export function useRewardEffects() {
 
   return { bursts, popups, comboFlashKey, comboForFlash, triggerCorrect, removeBurst, removePopup, resetEffects };
 }
+
