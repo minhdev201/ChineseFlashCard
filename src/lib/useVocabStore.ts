@@ -37,7 +37,8 @@ async function seedIfEmpty(userId: string) {
   }
 }
 
-async function bumpActivity(userId: string, kind: 'reviewed' | 'added') {
+async function bumpActivity(userId: string, kind: 'reviewed' | 'added', count = 1) {
+  if (count <= 0) return;
   const date = today();
   const { data } = await supabase
     .from('activity_log')
@@ -48,11 +49,11 @@ async function bumpActivity(userId: string, kind: 'reviewed' | 'added') {
   if (data) {
     await supabase
       .from('activity_log')
-      .update({ [kind]: (data[kind] || 0) + 1 })
+      .update({ [kind]: (data[kind] || 0) + count })
       .eq('user_id', userId)
       .eq('date', date);
   } else {
-    await supabase.from('activity_log').insert({ user_id: userId, date, reviewed: 0, added: 0, [kind]: 1 });
+    await supabase.from('activity_log').insert({ user_id: userId, date, reviewed: 0, added: 0, [kind]: count });
   }
 }
 
@@ -152,6 +153,42 @@ export function useVocabStore(user: User | null) {
     [user, refresh]
   );
 
+  const bulkAddVocab = useCallback(
+    async (
+      items: Array<
+        Pick<Vocab, 'hanzi' | 'pinyin' | 'meaning'> & {
+          structure?: string | null;
+          memory_bucket?: MemoryBucket;
+        }
+      >
+    ) => {
+      if (!user) throw new Error('No user logged in');
+      if (items.length === 0) return [];
+
+      const rows = items.map((item) => ({
+        user_id: user.id,
+        hanzi: item.hanzi.trim(),
+        pinyin: item.pinyin.trim(),
+        meaning: item.meaning.trim(),
+        structure: item.structure?.trim() || null,
+        memory_bucket: item.memory_bucket || 'unremembered',
+      }));
+
+      const { data, error } = await supabase
+        .from('vocab')
+        .insert(rows)
+        .select('*');
+
+      if (error) throw error;
+
+      await bumpActivity(user.id, 'added', rows.length);
+      await bumpStreak(user.id);
+      await refresh();
+      return (data as Vocab[]) || [];
+    },
+    [user, refresh]
+  );
+
   const updateVocab = useCallback(
     async (id: string, patch: Partial<Vocab>) => {
       // 1. Instant optimistic update
@@ -244,6 +281,7 @@ export function useVocabStore(user: User | null) {
     activity,
     refresh,
     addVocab,
+    bulkAddVocab,
     updateVocab,
     deleteVocab,
     setMemoryBucket,

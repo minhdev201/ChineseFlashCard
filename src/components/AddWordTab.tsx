@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
-import { Plus, Check, AlertCircle } from 'lucide-react';
+import { Plus, Check, AlertCircle, Layers, FileText } from 'lucide-react';
 import { hasNumericTones, numericPinyinToMarked } from '@/lib/pinyin';
 import type { Vocab } from '@/lib/types';
+import { BulkImportSection } from './BulkImportSection';
 
 interface AddWordTabProps {
   onAdd: (input: {
@@ -10,10 +11,20 @@ interface AddWordTabProps {
     meaning: string;
     structure?: string | null;
   }) => Promise<unknown>;
+  onBulkAdd?: (
+    items: Array<{
+      hanzi: string;
+      pinyin: string;
+      meaning: string;
+      structure?: string | null;
+    }>
+  ) => Promise<unknown>;
   isDuplicate: (hanzi: string) => Vocab | undefined;
+  existingVocab?: Vocab[];
 }
 
-export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
+export function AddWordTab({ onAdd, onBulkAdd, isDuplicate, existingVocab = [] }: AddWordTabProps) {
+  const [mode, setMode] = useState<'bulk' | 'single'>('bulk');
   const [hanzi, setHanzi] = useState('');
   const [pinyin, setPinyin] = useState('');
   const [meaning, setMeaning] = useState('');
@@ -93,12 +104,54 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
   };
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
-      <div className="mb-5">
-        <h2 className="text-xl font-bold text-slate-900 mb-1">Thêm từ</h2>
+    <div className={`mx-auto px-4 sm:px-6 py-6 transition-all ${mode === 'bulk' ? 'max-w-4xl' : 'max-w-xl'}`}>
+      {/* Tab Switcher */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Thêm từ vựng</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            {mode === 'bulk'
+              ? 'Dán danh sách từ trích xuất từ AI theo định dạng Hán ngữ | pinyin | nghĩa'
+              : 'Thêm thủ công từng từ vựng kèm mẫu câu ngữ pháp'}
+          </p>
+        </div>
+
+        <div className="flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMode('bulk')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
+              mode === 'bulk'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Nhập hàng loạt (AI)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('single')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
+              mode === 'single'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Thêm từng từ</span>
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {mode === 'bulk' ? (
+        onBulkAdd ? (
+          <BulkImportSection onBulkAdd={onBulkAdd} existingVocab={existingVocab} />
+        ) : (
+          <div className="text-sm text-slate-500">Chức năng nhập hàng loạt đang chuẩn bị...</div>
+        )
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Hán tự" required>
           <input
             ref={hanziRef}
@@ -181,6 +234,7 @@ export function AddWordTab({ onAdd, isDuplicate }: AddWordTabProps) {
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

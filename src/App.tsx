@@ -75,7 +75,12 @@ function App() {
           />
         )}
         {tab === 'add' && (
-          <AddWordTab onAdd={store.addVocab} isDuplicate={store.findDuplicate} />
+          <AddWordTab
+            onAdd={store.addVocab}
+            onBulkAdd={store.bulkAddVocab}
+            isDuplicate={store.findDuplicate}
+            existingVocab={store.vocab}
+          />
         )}
         {tab === 'list' && (
           <WordListTab

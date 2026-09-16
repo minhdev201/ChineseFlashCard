@@ -37,15 +37,16 @@ function convertSyllable(syll: string): string {
 }
 
 export function numericPinyinToMarked(input: string): string {
-  return input
-    .trim()
+  // Separate attached syllables like 'ping2guo3' -> 'ping2 guo3'
+  const normalized = input.trim().replace(/([1-5])([a-zA-ZüÜ])/g, '$1 $2');
+  return normalized
     .split(/\s+/)
     .map(convertSyllable)
     .join(' ');
 }
 
 export function hasNumericTones(input: string): boolean {
-  return /\b[a-zA-ZüÜ]+[1-5]\b/.test(input);
+  return /[a-zA-ZüÜ]+[1-5]/.test(input);
 }
 
 function stripTones(s: string): string {
