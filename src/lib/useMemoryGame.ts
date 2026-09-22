@@ -146,18 +146,14 @@ export function useMemoryGame() {
       const gameWords = shuffleArray(wordsToUse);
       const selectedIds = new Set(wordsToUse.map((w) => w.id));
 
-      const grid: GridCell[] = wordsToUse.map((word, index) => ({
+      // Shuffle grid cell positions independently
+      const shuffledWords = shuffleArray(wordsToUse);
+      const grid: GridCell[] = shuffledWords.map((word, index) => ({
         id: index,
         word,
         isTarget: selectedIds.has(word.id),
         state: 'idle' as const,
       }));
-
-      // Shuffle grid cell positions independently
-      const shuffledGrid = shuffleArray(grid);
-      shuffledGrid.forEach((cell, idx) => {
-        cell.id = idx;
-      });
 
       setState({
         phase: 'playing',
@@ -293,17 +289,23 @@ export function useMemoryGame() {
           const gameWords = shuffleArray(wordsToUse);
           const selectedIds = new Set(wordsToUse.map((w) => w.id));
 
-          const grid: GridCell[] = wordsToUse.map((word, index) => ({
+          // Ensure grid cards are reshuffled into different positions from previous game
+          let shuffledWords = shuffleArray(wordsToUse);
+          if (prev.grid.length > 1 && wordsToUse.length > 1) {
+            const prevOrder = prev.grid.map((c) => c.word.id).join(',');
+            let attempts = 0;
+            while (shuffledWords.map((w) => w.id).join(',') === prevOrder && attempts < 10) {
+              shuffledWords = shuffleArray(wordsToUse);
+              attempts++;
+            }
+          }
+
+          const grid: GridCell[] = shuffledWords.map((word, index) => ({
             id: index,
             word,
             isTarget: selectedIds.has(word.id),
             state: 'idle' as const,
           }));
-
-          const shuffledGrid = shuffleArray(grid);
-          shuffledGrid.forEach((cell, idx) => {
-            cell.id = idx;
-          });
 
           return {
             ...prev,

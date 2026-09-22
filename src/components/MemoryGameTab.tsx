@@ -529,6 +529,13 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                 Bỏ qua
               </button>
               <button
+                onClick={handlePlayAgain}
+                className="p-1.5 bg-white/15 hover:bg-white/25 active:bg-white/35 text-white rounded-lg transition-colors"
+                title="Chơi lại bàn này (trộn vị trí thẻ)"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+              <button
                 onClick={resetGame}
                 className="p-1.5 bg-rose-500/30 hover:bg-rose-500/40 text-white rounded-lg transition-colors"
                 title="Thoát"
@@ -681,6 +688,14 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               Bỏ qua từ này
             </button>
             <button
+              onClick={handlePlayAgain}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl transition-all border border-indigo-200/80 text-sm"
+              title="Trộn lại các thẻ và chơi lại từ đầu"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Chơi lại bàn này
+            </button>
+            <button
               onClick={resetGame}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-50/80 hover:bg-rose-100 text-rose-600 font-semibold rounded-xl transition-all border border-rose-200/80 text-sm"
             >
@@ -718,7 +733,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
 
               return (
                 <button
-                  key={cell.id}
+                  key={`${cell.id}-${cell.word.id}`}
                   onClick={(e) => {
                     const prevCombo = state.combo;
                     const currentWord = state.gameWords[state.currentWordIndex];
