@@ -567,7 +567,7 @@ export function FlashcardTab({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Top Header Controls Bar */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="relative z-20 bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
           <div className="flex items-center gap-2">
             {isJumping ? (
@@ -640,7 +640,7 @@ export function FlashcardTab({
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0 md:ml-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:ml-auto">
             <button
               onClick={() => setShowTianzige((s) => !s)}
               className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${showTianzige
@@ -678,7 +678,7 @@ export function FlashcardTab({
               </button>
 
               {bucketDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 animate-fade-in">
+                <div className="absolute right-0 top-full mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 animate-fade-in">
                   {BUCKET_FILTER_OPTIONS.map((opt) => {
                     const isActive = bucketFilter === opt.value;
                     const count = bucketCounts[opt.value];
@@ -744,7 +744,7 @@ export function FlashcardTab({
               </button>
 
               {sortDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 animate-fade-in">
+                <div className="absolute right-0 top-full mt-1.5 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 animate-fade-in">
                   {SORT_OPTIONS.map((opt) => {
                     const Icon = opt.icon;
                     const isActive = sortMode === opt.value;
