@@ -1,5 +1,25 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Play, Search, RotateCcw, ArrowLeft, Trophy, Clock, XCircle, Flame, Gamepad2, CheckCircle2, Zap, Timer, Target, Sparkles, Shuffle } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import {
+  Play,
+  Search,
+  RotateCcw,
+  ArrowLeft,
+  Trophy,
+  Clock,
+  XCircle,
+  Flame,
+  Gamepad2,
+  CheckCircle2,
+  Zap,
+  Timer,
+  Target,
+  Sparkles,
+  Shuffle,
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
+  ChevronDown,
+  Check,
+} from 'lucide-react';
 import type { Vocab, MemoryBucket } from '@/lib/types';
 import { useMemoryGame, GAME_MODE_COUNTS, TIME_PRESSURE_SECONDS, type GameMode } from '@/lib/useMemoryGame';
 import { RewardOverlay, ComboFlashBanner, ConfettiRain } from './RewardEffects';
@@ -11,6 +31,13 @@ interface MemoryGameTabProps {
 }
 
 type FilterBucket = 'all' | MemoryBucket;
+
+type SortMode = 'newest' | 'oldest';
+
+const SORT_OPTIONS: { value: SortMode; label: string; icon: typeof ArrowDownNarrowWide }[] = [
+  { value: 'newest', label: 'Mới nhất trước', icon: ArrowDownNarrowWide },
+  { value: 'oldest', label: 'Cũ nhất trước', icon: ArrowUpNarrowWide },
+];
 
 function shuffleArray<T>(arr: T[]): T[] {
   const result = [...arr];
@@ -32,6 +59,20 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [timePressure, setTimePressure] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setSortDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const targetCount = GAME_MODE_COUNTS[selectedMode];
 
@@ -61,8 +102,12 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
       );
     }
 
+    if (sortMode === 'newest') {
+      return [...filtered].reverse();
+    }
+
     return filtered;
-  }, [vocab, filterBucket, searchQuery]);
+  }, [vocab, filterBucket, searchQuery, sortMode]);
 
   const selectedWords = useMemo(() => {
     return vocab.filter((w) => selectedIds.has(w.id));
@@ -380,15 +425,69 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             })}
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Tìm theo Hán tự, pinyin, nghĩa..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 bg-slate-50/50"
-            />
+          <div className="flex gap-2 items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm theo Hán tự, pinyin, nghĩa..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 bg-slate-50/50"
+              />
+            </div>
+
+            {/* Sort dropdown */}
+            <div className="relative shrink-0" ref={sortDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setSortDropdownOpen((s) => !s)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
+                  sortDropdownOpen
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'text-slate-700 bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+                title="Chọn thứ tự hiển thị từ vựng"
+              >
+                {(() => {
+                  const opt = SORT_OPTIONS.find((o) => o.value === sortMode);
+                  const Icon = opt?.icon ?? ArrowDownNarrowWide;
+                  return <Icon className="w-3.5 h-3.5" />;
+                })()}
+                <span className="hidden sm:inline">
+                  {SORT_OPTIONS.find((o) => o.value === sortMode)?.label ?? 'Sắp xếp'}
+                </span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${sortDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {sortDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                  {SORT_OPTIONS.map((opt) => {
+                    const Icon = opt.icon;
+                    const isActive = sortMode === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setSortMode(opt.value);
+                          setSortDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium transition-colors ${
+                          isActive
+                            ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
+                        <span>{opt.label}</span>
+                        {isActive && <Check className="w-3.5 h-3.5 ml-auto text-indigo-500" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-1">
