@@ -83,6 +83,17 @@ export function useVocabStore(user: User | null) {
   const seeded = useRef(false);
   const initialLoaded = useRef(false);
 
+  const refreshStats = useCallback(async () => {
+    if (!user) return;
+    const [{ data: st }, { data: act }] = await Promise.all([
+      supabase.from('app_state').select('*').eq('user_id', user.id).maybeSingle(),
+      supabase.from('activity_log').select('*').eq('user_id', user.id).order('date', { ascending: true }),
+    ]);
+    setStreak((st as AppState)?.streak_count || 0);
+    setTotalReviews((st as AppState)?.total_reviews || 0);
+    setActivity((act as ActivityLog[]) || []);
+  }, [user]);
+
   const refresh = useCallback(async () => {
     if (!user) return;
     const [{ data: v }, { data: st }, { data: act }] = await Promise.all([
@@ -259,14 +270,21 @@ export function useVocabStore(user: User | null) {
 
   const recordReview = useCallback(async () => {
     if (!user) return;
-    await supabase
-      .from('app_state')
-      .update({ total_reviews: totalReviews + 1 })
-      .eq('user_id', user.id);
-    await bumpActivity(user.id, 'reviewed');
-    await bumpStreak(user.id);
-    await refresh();
-  }, [user, totalReviews, refresh]);
+    setTotalReviews((prev) => prev + 1);
+    try {
+      await Promise.all([
+        supabase
+          .from('app_state')
+          .update({ total_reviews: totalReviews + 1 })
+          .eq('user_id', user.id),
+        bumpActivity(user.id, 'reviewed'),
+        bumpStreak(user.id),
+      ]);
+      await refreshStats();
+    } catch (err) {
+      console.error('Error recording review:', err);
+    }
+  }, [user, totalReviews, refreshStats]);
 
   const findDuplicate = useCallback(
     (hanzi: string) => vocab.find((c) => c.hanzi === hanzi.trim()),

@@ -525,6 +525,8 @@ export function FlashcardTab({
         return;
       }
 
+      if (e.repeat) return;
+
       if (e.key === ' ') {
         e.preventDefault();
         setFlipped((f) => !f);
