@@ -1,95 +1,22 @@
 /**
- * Game Audio & Sound Effects Engine powered by Web Audio API.
- * Provides real-time synthesized BGM, adaptive combo pitch scaling,
- * celebratory fanfares, and persistent volume settings.
+ * Game Sound Effects (SFX) Engine powered by Web Audio API.
+ * Provides synthesized sound effects for actions: correct answers,
+ * mistakes, combo milestones, and victory fanfares.
  */
 
-type AudioSettings = {
-  bgmMuted: boolean;
-  sfxMuted: boolean;
-  bgmVolume: number; // 0.0 to 1.0
-  sfxVolume: number; // 0.0 to 1.0
-};
-
-const STORAGE_KEY = 'chinese_flashcard_audio_settings';
-
-const defaultSettings: AudioSettings = {
-  bgmMuted: false,
-  sfxMuted: false,
-  bgmVolume: 0.28,
-  sfxVolume: 0.65,
-};
-
-function loadSettings(): AudioSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...defaultSettings, ...parsed };
-    }
-  } catch {
-    // fallback
-  }
-  return defaultSettings;
-}
-
-function saveSettings(settings: AudioSettings) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // ignore
-  }
-}
-
-// Global state
-import {
-  getYouTubeSettings,
-  playYouTubeAudio,
-  pauseYouTubeAudio,
-  setYouTubeAudioVolume,
-} from './youtubePlayer';
-
-let currentSettings: AudioSettings = loadSettings();
-const listeners = new Set<(s: AudioSettings) => void>();
-
-export function getAudioSettings(): AudioSettings {
-  return { ...currentSettings };
-}
-
-export function updateAudioSettings(partial: Partial<AudioSettings>) {
-  currentSettings = { ...currentSettings, ...partial };
-  saveSettings(currentSettings);
-  updateAudioNodesGain();
-  listeners.forEach((fn) => fn(currentSettings));
-}
-
-export function subscribeAudioSettings(fn: (s: AudioSettings) => void) {
-  listeners.add(fn);
-  return () => {
-    listeners.delete(fn);
-  };
-}
-
-// ─────────────────────────────────────────────
-// AUDIO CONTEXT & GAIN NODES
-// ─────────────────────────────────────────────
-
 let audioCtx: AudioContext | null = null;
-let bgmMasterGain: GainNode | null = null;
 let sfxMasterGain: GainNode | null = null;
 
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const Ctx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     audioCtx = new Ctx();
 
-    bgmMasterGain = audioCtx.createGain();
     sfxMasterGain = audioCtx.createGain();
-
-    bgmMasterGain.connect(audioCtx.destination);
+    sfxMasterGain.gain.setValueAtTime(0.65, audioCtx.currentTime);
     sfxMasterGain.connect(audioCtx.destination);
-
-    updateAudioNodesGain();
   }
 
   if (audioCtx.state === 'suspended') {
@@ -99,29 +26,7 @@ function getAudioContext(): AudioContext {
   return audioCtx;
 }
 
-function updateAudioNodesGain() {
-  if (!audioCtx) return;
-  const now = audioCtx.currentTime;
-
-  if (bgmMasterGain) {
-    const targetBgm = currentSettings.bgmMuted ? 0 : currentSettings.bgmVolume;
-    bgmMasterGain.gain.setValueAtTime(bgmMasterGain.gain.value, now);
-    bgmMasterGain.gain.linearRampToValueAtTime(targetBgm, now + 0.1);
-  }
-
-  // Update YouTube audio volume as well
-  const ytVol = currentSettings.bgmMuted ? 0 : (currentSettings.bgmVolume / 0.8) * 100;
-  setYouTubeAudioVolume(ytVol);
-
-  if (sfxMasterGain) {
-    const targetSfx = currentSettings.sfxMuted ? 0 : currentSettings.sfxVolume;
-    sfxMasterGain.gain.setValueAtTime(sfxMasterGain.gain.value, now);
-    sfxMasterGain.gain.linearRampToValueAtTime(targetSfx, now + 0.1);
-  }
-}
-
-
-// Auto unlock on first user gesture
+// Auto unlock audio context on first user gesture
 if (typeof window !== 'undefined') {
   const unlock = () => {
     if (audioCtx && audioCtx.state === 'suspended') {
@@ -133,207 +38,11 @@ if (typeof window !== 'undefined') {
   window.addEventListener('keydown', unlock, { passive: true });
 }
 
-// ─────────────────────────────────────────────
-// PROCEDURAL BACKGROUND MUSIC (BGM)
-// ─────────────────────────────────────────────
-
-interface BGMController {
-  isPlaying: boolean;
-  timerId: number | null;
-  step: number;
-  mode: 'relaxed' | 'energetic';
-}
-
-const bgmState: BGMController = {
-  isPlaying: false,
-  timerId: null,
-  step: 0,
-  mode: 'relaxed',
-};
-
-// Pentatonic scales in Hz (F major pentatonic / Asian game aesthetic)
-const PENTATONIC_MELODY = [
-  349.23, // F4
-  392.0,  // G4
-  440.0,  // A4
-  523.25, // C5
-  587.33, // D5
-  698.46, // F5
-  783.99, // G5
-  880.0,  // A5
-  1046.5, // C6
-];
-
-const BASS_NOTES = [
-  87.31,  // F2
-  110.0,  // A2
-  130.81, // C3
-  98.0,   // G2
-  116.54, // Bb2
-  146.83, // D3
-];
-
-// Melodic patterns (indices into PENTATONIC_MELODY)
-const MELODY_PATTERNS = [
-  [0, 2, 3, 5, 4, 3, 2, 0, 1, 3, 4, 6, 5, 4, 3, 1],
-  [3, 5, 6, 7, 6, 5, 3, 4, 2, 3, 5, 4, 3, 2, 0, 2],
-  [5, 4, 3, 2, 3, 5, 6, 8, 7, 5, 4, 3, 2, 0, 2, 3],
-  [0, 3, 4, 5, 7, 6, 5, 3, 2, 4, 3, 1, 0, 2, 3, 5],
-];
-
-function playBGMStep() {
-  if (!bgmState.isPlaying) return;
-
-  try {
-    const ctx = getAudioContext();
-    if (!bgmMasterGain) return;
-
-    const step = bgmState.step % 16;
-    const bar = Math.floor((bgmState.step / 16) % MELODY_PATTERNS.length);
-    const pattern = MELODY_PATTERNS[bar];
-    const now = ctx.currentTime;
-
-    // 1. Bass note on downbeats (steps 0, 8)
-    if (step === 0 || step === 8) {
-      const bassFreq = BASS_NOTES[(bar * 2 + (step === 8 ? 1 : 0)) % BASS_NOTES.length];
-      const bassOsc = ctx.createOscillator();
-      const bassGain = ctx.createGain();
-      bassOsc.type = 'triangle';
-      bassOsc.frequency.setValueAtTime(bassFreq, now);
-
-      bassGain.gain.setValueAtTime(0.001, now);
-      bassGain.gain.linearRampToValueAtTime(0.18, now + 0.04);
-      bassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
-
-      bassOsc.connect(bassGain);
-      bassGain.connect(bgmMasterGain);
-
-      bassOsc.start(now);
-      bassOsc.stop(now + 0.66);
-    }
-
-    // 2. Melodic chime / marimba note (steps with variation)
-    // Play on most 8th notes, with some rhythmic skips for pleasant groove
-    const shouldPlayMelody = step % 2 === 0 || (step % 4 === 3 && Math.random() > 0.4);
-    if (shouldPlayMelody) {
-      const noteIdx = pattern[step];
-      const freq = PENTATONIC_MELODY[noteIdx % PENTATONIC_MELODY.length];
-
-      // Primary sine tone
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator(); // harmonic chime
-      const noteGain = ctx.createGain();
-
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(freq, now);
-
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(freq * 2, now); // octave chime
-
-      const noteDuration = bgmState.mode === 'energetic' ? 0.22 : 0.35;
-
-      noteGain.gain.setValueAtTime(0.001, now);
-      noteGain.gain.linearRampToValueAtTime(0.12, now + 0.015);
-      noteGain.gain.exponentialRampToValueAtTime(0.0001, now + noteDuration);
-
-      osc1.connect(noteGain);
-      osc2.connect(noteGain);
-      noteGain.connect(bgmMasterGain);
-
-      osc1.start(now);
-      osc2.start(now);
-      osc1.stop(now + noteDuration + 0.01);
-      osc2.stop(now + noteDuration + 0.01);
-    }
-
-    // 3. Subtle soft percussion / shaker tick (every 2 steps)
-    if (step % 2 === 0) {
-      const tickOsc = ctx.createOscillator();
-      const tickGain = ctx.createGain();
-      tickOsc.type = 'sine';
-      tickOsc.frequency.setValueAtTime(step % 4 === 0 ? 1200 : 2400, now);
-
-      tickGain.gain.setValueAtTime(0.001, now);
-      tickGain.gain.linearRampToValueAtTime(step % 4 === 0 ? 0.02 : 0.012, now + 0.005);
-      tickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
-
-      tickOsc.connect(tickGain);
-      tickGain.connect(bgmMasterGain);
-
-      tickOsc.start(now);
-      tickOsc.stop(now + 0.045);
-    }
-
-    bgmState.step++;
-  } catch {
-    // ignore audio processing error
-  }
-}
-
-export function startBGM(mode: 'relaxed' | 'energetic' = 'relaxed') {
-  const ytSettings = getYouTubeSettings();
-
-  if (ytSettings.bgmSource === 'youtube') {
-    // Stop synth BGM if it was playing
-    if (bgmState.isPlaying) {
-      bgmState.isPlaying = false;
-      if (bgmState.timerId !== null) {
-        clearInterval(bgmState.timerId);
-        bgmState.timerId = null;
-      }
-    }
-    const ytVol = currentSettings.bgmMuted ? 0 : (currentSettings.bgmVolume / 0.8) * 100;
-    setYouTubeAudioVolume(ytVol);
-    playYouTubeAudio();
-    return;
-  }
-
-  // Otherwise, use synthesized BGM
-  pauseYouTubeAudio();
-
-  if (bgmState.isPlaying) {
-    bgmState.mode = mode;
-    return;
-  }
-
-  bgmState.isPlaying = true;
-  bgmState.mode = mode;
-  bgmState.step = 0;
-
-  const intervalMs = mode === 'energetic' ? 220 : 280;
-  bgmState.timerId = window.setInterval(playBGMStep, intervalMs);
-}
-
-export function stopBGM(forceAll = false) {
-  // Stop synth BGM
-  if (bgmState.isPlaying) {
-    bgmState.isPlaying = false;
-    if (bgmState.timerId !== null) {
-      clearInterval(bgmState.timerId);
-      bgmState.timerId = null;
-    }
-    bgmState.step = 0;
-  }
-
-  // Only pause YouTube if explicitly forced (e.g. user toggled off)
-  if (forceAll) {
-    pauseYouTubeAudio();
-  }
-}
-
-
-
-// ─────────────────────────────────────────────
-// SOUND EFFECTS (SFX)
-// ─────────────────────────────────────────────
-
 /**
  * Play an uplifting chime arpeggio when answering correctly.
  * Base frequency and overtone richness scales smoothly with combo streak!
  */
 export function playCorrectSound(combo = 1) {
-  if (currentSettings.sfxMuted) return;
-
   try {
     const ctx = getAudioContext();
     if (!sfxMasterGain) return;
@@ -384,8 +93,6 @@ export function playCorrectSound(combo = 1) {
  * Play a friendly, gentle descending tone when choosing incorrectly.
  */
 export function playWrongSound() {
-  if (currentSettings.sfxMuted) return;
-
   try {
     const ctx = getAudioContext();
     if (!sfxMasterGain) return;
@@ -422,8 +129,6 @@ export function playWrongSound() {
  * Play a celebratory fanfare when hitting combo milestones (3, 5, 7, 10, 15, 20...).
  */
 export function playComboMilestoneSound(combo: number) {
-  if (currentSettings.sfxMuted) return;
-
   try {
     const ctx = getAudioContext();
     if (!sfxMasterGain) return;
@@ -489,8 +194,6 @@ export function playComboMilestoneSound(combo: number) {
  * Play a grand victory fanfare upon game completion.
  */
 export function playVictorySound() {
-  if (currentSettings.sfxMuted) return;
-
   try {
     const ctx = getAudioContext();
     if (!sfxMasterGain) return;
@@ -533,38 +236,6 @@ export function playVictorySound() {
       osc1.stop(noteStart + note.dur + 0.02);
       osc2.stop(noteStart + note.dur + 0.02);
     });
-  } catch {
-    // ignore
-  }
-}
-
-/**
- * Play a light tactile tap sound for card flips or option selection.
- */
-export function playCardClickSound() {
-  if (currentSettings.sfxMuted) return;
-
-  try {
-    const ctx = getAudioContext();
-    if (!sfxMasterGain) return;
-
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, now);
-    osc.frequency.exponentialRampToValueAtTime(300, now + 0.04);
-
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.08, now + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
-
-    osc.connect(gain);
-    gain.connect(sfxMasterGain);
-
-    osc.start(now);
-    osc.stop(now + 0.045);
   } catch {
     // ignore
   }

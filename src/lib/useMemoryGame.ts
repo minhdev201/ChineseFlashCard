@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Vocab } from './types';
 
 export type GameMode = '6x5' | '7x5' | '8x5';
+export type GamePromptMode = 'pinyin_to_hanzi' | 'hanzi_to_pinyin';
 
 export const GAME_MODE_COUNTS: Record<GameMode, number> = {
   '6x5': 30,
@@ -32,6 +33,7 @@ export interface GridCell {
 export interface MemoryGameState {
   phase: 'setup' | 'playing' | 'result';
   mode: GameMode;
+  promptMode: GamePromptMode;
   timePressure: boolean;
   selectedWords: Vocab[];
   gameWords: Vocab[];
@@ -54,6 +56,7 @@ export function useMemoryGame() {
   const [state, setState] = useState<MemoryGameState>({
     phase: 'setup',
     mode: '6x5',
+    promptMode: 'pinyin_to_hanzi',
     timePressure: false,
     selectedWords: [],
     gameWords: [],
@@ -137,7 +140,7 @@ export function useMemoryGame() {
   }, [state.phase, state.timePressure, state.currentWordIndex]);
 
   const startGame = useCallback(
-    (selected: Vocab[], mode: GameMode, timePressure: boolean) => {
+    (selected: Vocab[], mode: GameMode, timePressure: boolean, promptMode: GamePromptMode = 'pinyin_to_hanzi') => {
       const targetCount = GAME_MODE_COUNTS[mode];
       if (selected.length < targetCount) return;
 
@@ -158,6 +161,7 @@ export function useMemoryGame() {
       setState({
         phase: 'playing',
         mode,
+        promptMode,
         timePressure,
         selectedWords: wordsToUse,
         gameWords,
@@ -261,9 +265,10 @@ export function useMemoryGame() {
   }, []);
 
   const resetGame = useCallback(() => {
-    setState({
+    setState((prev) => ({
       phase: 'setup',
-      mode: '6x5',
+      mode: prev.mode || '6x5',
+      promptMode: prev.promptMode || 'pinyin_to_hanzi',
       timePressure: false,
       selectedWords: [],
       gameWords: [],
@@ -277,7 +282,7 @@ export function useMemoryGame() {
       startTime: 0,
       elapsedTime: 0,
       timeLeft: TIME_PRESSURE_SECONDS,
-    });
+    }));
   }, []);
 
   const playAgain = useCallback(

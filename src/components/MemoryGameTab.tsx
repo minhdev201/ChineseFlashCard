@@ -19,12 +19,13 @@ import {
   ArrowUpNarrowWide,
   ChevronDown,
   Check,
+  Languages,
 } from 'lucide-react';
 import type { Vocab, MemoryBucket } from '@/lib/types';
-import { useMemoryGame, GAME_MODE_COUNTS, TIME_PRESSURE_SECONDS, type GameMode } from '@/lib/useMemoryGame';
+import { useMemoryGame, GAME_MODE_COUNTS, TIME_PRESSURE_SECONDS, type GameMode, type GamePromptMode } from '@/lib/useMemoryGame';
 import { RewardOverlay, ComboFlashBanner, ConfettiRain } from './RewardEffects';
 import { useRewardEffects } from '@/lib/useRewardEffects';
-import { startBGM, stopBGM, playWrongSound, playVictorySound } from '@/lib/soundEffects';
+import { playWrongSound, playVictorySound } from '@/lib/soundEffects';
 
 interface MemoryGameTabProps {
   vocab: Vocab[];
@@ -55,6 +56,20 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
   const { bursts, popups, comboFlashKey, comboForFlash, triggerCorrect, removeBurst, removePopup, resetEffects } = useRewardEffects();
 
   const [selectedMode, setSelectedMode] = useState<GameMode>('6x5');
+  const [promptMode, setPromptMode] = useState<GamePromptMode>(() => {
+    const saved = localStorage.getItem('memory_game_prompt_mode');
+    return saved === 'hanzi_to_pinyin' ? 'hanzi_to_pinyin' : 'pinyin_to_hanzi';
+  });
+
+  const handlePromptModeChange = (mode: GamePromptMode) => {
+    setPromptMode(mode);
+    try {
+      localStorage.setItem('memory_game_prompt_mode', mode);
+    } catch {
+      // ignore
+    }
+  };
+
   const [filterBucket, setFilterBucket] = useState<FilterBucket>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -182,7 +197,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
 
   const handleStart = () => {
     if (selectedIds.size !== targetCount) return;
-    startGame(selectedWords, selectedMode, timePressure);
+    startGame(selectedWords, selectedMode, timePressure, promptMode);
   };
 
   const handlePlayAgain = () => {
@@ -197,18 +212,6 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     setSearchQuery('');
     setFilterBucket('all');
   };
-
-  // Audio lifecycle effect
-  useEffect(() => {
-    if (state.phase === 'playing') {
-      startBGM(state.timePressure ? 'energetic' : 'relaxed');
-    } else {
-      stopBGM();
-    }
-    return () => {
-      stopBGM();
-    };
-  }, [state.phase, state.timePressure]);
 
   useEffect(() => {
     if (state.phase === 'result') {
@@ -261,6 +264,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               return (
                 <button
                   key={modeKey}
+                  type="button"
                   onClick={() => handleModeChange(modeKey)}
                   className={`p-3.5 sm:p-4 rounded-xl border-2 font-bold text-center transition-all flex flex-col items-center justify-between ${
                     isSelected
@@ -278,6 +282,73 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* Prompt Mode Selector (Pinyin -> Hanzi VS Hanzi -> Pinyin) */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-3">
+          <label className="text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-extrabold">2</span>
+            Chọn hình thức lật thẻ
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => handlePromptModeChange('pinyin_to_hanzi')}
+              className={`p-4 rounded-xl border-2 text-left transition-all flex items-start gap-3.5 ${
+                promptMode === 'pinyin_to_hanzi'
+                  ? 'border-indigo-600 bg-indigo-50/80 text-indigo-950 shadow-md ring-2 ring-indigo-500/20'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50/80'
+              }`}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                  promptMode === 'pinyin_to_hanzi' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                <Languages className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-sm sm:text-base text-slate-800">Nhìn Pinyin ➔ Chọn Chữ Hán</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                    Mặc định
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Đề bài hiện phiên âm <span className="font-semibold text-indigo-700">Pinyin</span>, bạn tìm ô <span className="font-semibold text-slate-700">Chữ Hán</span> tương ứng.
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handlePromptModeChange('hanzi_to_pinyin')}
+              className={`p-4 rounded-xl border-2 text-left transition-all flex items-start gap-3.5 ${
+                promptMode === 'hanzi_to_pinyin'
+                  ? 'border-indigo-600 bg-indigo-50/80 text-indigo-950 shadow-md ring-2 ring-indigo-500/20'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50/80'
+              }`}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                  promptMode === 'hanzi_to_pinyin' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-sm sm:text-base text-slate-800">Nhìn Chữ Hán ➔ Chọn Pinyin</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                    Mới
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Đề bài hiện <span className="font-semibold text-indigo-700">Chữ Hán</span>, bạn tìm ô <span className="font-semibold text-slate-700">Phiên âm Pinyin</span> tương ứng.
+                </p>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -331,7 +402,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-extrabold">2</span>
+              <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-extrabold">3</span>
               <span className="text-sm font-semibold text-slate-700">Đã chọn từ vựng:</span>
               <span className={`text-2xl font-bold font-mono ${isReady ? 'text-emerald-600' : 'text-indigo-600'}`}>
                 {selectedIds.size}
@@ -539,7 +610,9 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             className="flex items-center gap-2.5 px-8 py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-base sm:text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
           >
             <Play className="w-5 h-5 fill-current" />
-            {isReady ? `Bắt đầu chơi (Bàn ${selectedMode})` : `Cần chọn đủ ${targetCount} từ để bắt đầu`}
+            {isReady
+              ? `Bắt đầu chơi (Bàn ${selectedMode} · ${promptMode === 'hanzi_to_pinyin' ? 'Nhìn Hán ➔ Chọn Pinyin' : 'Nhìn Pinyin ➔ Chọn Hán'})`
+              : `Cần chọn đủ ${targetCount} từ để bắt đầu`}
           </button>
         </div>
       </div>
@@ -550,6 +623,7 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     const currentWord = state.gameWords[state.currentWordIndex];
     const totalWords = state.grid.length;
     const progress = ((state.foundWords.size / totalWords) * 100).toFixed(0);
+    const isHanziToPinyin = state.promptMode === 'hanzi_to_pinyin';
 
     const pinyinLen = currentWord.pinyin.length;
     const desktopPinyinSize =
@@ -610,10 +684,18 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               : 'bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/20'
           }`}>
             <div className="min-w-0 flex-1 flex items-baseline gap-2">
-              <span className="text-[10px] text-indigo-300 uppercase font-bold shrink-0 tracking-wider">Tìm:</span>
-              <span className={`font-extrabold tracking-wide break-all min-w-0 text-amber-300 ${mobilePinyinSize}`}>
-                {currentWord.pinyin}
+              <span className="text-[10px] text-indigo-300 uppercase font-bold shrink-0 tracking-wider">
+                {isHanziToPinyin ? 'Tìm Pinyin của:' : 'Tìm:'}
               </span>
+              {isHanziToPinyin ? (
+                <span className="font-bold tracking-wider break-all min-w-0 text-amber-300 text-xl sm:text-2xl">
+                  {currentWord.hanzi}
+                </span>
+              ) : (
+                <span className={`font-extrabold tracking-wide break-all min-w-0 text-amber-300 ${mobilePinyinSize}`}>
+                  {currentWord.pinyin}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {state.timePressure && (
@@ -684,16 +766,22 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
 
         {/* Desktop left info panel (>= lg) */}
         <div className="hidden lg:flex lg:w-64 xl:w-72 shrink-0 flex-col gap-3">
-          {/* Target Pinyin prompt card */}
+          {/* Target prompt card */}
           <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-xl border border-indigo-500/20 text-center flex flex-col justify-center min-h-[120px] overflow-hidden relative">
             <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
             <div className="inline-flex items-center justify-center gap-1.5 text-[11px] text-indigo-300 mb-1.5 uppercase tracking-widest font-semibold">
               <Target className="w-3.5 h-3.5 text-amber-400" />
-              Tìm chữ có Pinyin
+              {isHanziToPinyin ? 'Tìm Pinyin của chữ' : 'Tìm chữ có Pinyin'}
             </div>
-            <div className={`font-extrabold tracking-wide py-1 break-words max-w-full leading-tight text-amber-300 drop-shadow-sm ${desktopPinyinSize}`}>
-              {currentWord.pinyin}
-            </div>
+            {isHanziToPinyin ? (
+              <div className="font-normal tracking-wide py-1 break-words max-w-full leading-tight text-amber-300 drop-shadow-sm text-4xl xl:text-5xl">
+                {currentWord.hanzi}
+              </div>
+            ) : (
+              <div className={`font-extrabold tracking-wide py-1 break-words max-w-full leading-tight text-amber-300 drop-shadow-sm ${desktopPinyinSize}`}>
+                {currentWord.pinyin}
+              </div>
+            )}
           </div>
 
           {/* Time pressure countdown (desktop) */}
@@ -811,7 +899,8 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               const isCorrect = cell.state === 'correct';
               const isWrong = cell.state === 'wrong';
               const hanziLen = cell.word.hanzi.length;
-              
+              const cellPinyinLen = cell.word.pinyin.length;
+
               const hanziSizeClass =
                 hanziLen >= 4
                   ? 'text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl'
@@ -829,6 +918,26 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                   : hanziLen === 2
                   ? 'text-base sm:text-xl md:text-2xl lg:text-3xl'
                   : 'text-lg sm:text-2xl md:text-3xl lg:text-4xl';
+
+              const cellPinyinSizeClass =
+                cellPinyinLen >= 15
+                  ? 'text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold tracking-tight'
+                  : cellPinyinLen >= 11
+                  ? 'text-xs sm:text-sm md:text-base lg:text-lg font-bold tracking-tight'
+                  : cellPinyinLen >= 7
+                  ? 'text-xs sm:text-base md:text-lg lg:text-xl font-bold'
+                  : cellPinyinLen >= 4
+                  ? 'text-sm sm:text-lg md:text-xl lg:text-2xl font-bold'
+                  : 'text-base sm:text-xl md:text-2xl lg:text-3xl font-bold';
+
+              const correctPinyinSizeClass =
+                cellPinyinLen >= 15
+                  ? 'text-[10px] sm:text-xs md:text-sm font-semibold'
+                  : cellPinyinLen >= 11
+                  ? 'text-xs sm:text-xs md:text-sm font-bold'
+                  : cellPinyinLen >= 7
+                  ? 'text-xs sm:text-sm md:text-base font-bold'
+                  : 'text-sm sm:text-base md:text-lg font-bold';
 
               return (
                 <button
@@ -862,18 +971,37 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                   }}
                 >
                   {isCorrect ? (
-                    <div className="flex flex-col items-center justify-center w-full min-w-0 h-full leading-tight text-center">
-                      <span className={`font-normal tracking-wide truncate max-w-full leading-none drop-shadow-sm ${correctHanziSizeClass}`}>
-                        {cell.word.hanzi}
-                      </span>
-                      <span className="text-[10px] sm:text-xs font-normal text-emerald-100/95 truncate max-w-full mt-0.5 leading-none px-0.5">
-                        {cell.word.meaning}
-                      </span>
+                    <div className="flex flex-col items-center justify-center w-full min-w-0 h-full leading-tight text-center px-0.5">
+                      {isHanziToPinyin ? (
+                        <>
+                          <span className={`font-bold tracking-tight truncate max-w-full leading-tight drop-shadow-sm ${correctPinyinSizeClass}`}>
+                            {cell.word.pinyin}
+                          </span>
+                          <span className="text-[10px] sm:text-xs font-normal text-emerald-100/95 truncate max-w-full mt-0.5 leading-none px-0.5">
+                            {cell.word.hanzi} · {cell.word.meaning}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className={`font-normal tracking-wide truncate max-w-full leading-none drop-shadow-sm ${correctHanziSizeClass}`}>
+                            {cell.word.hanzi}
+                          </span>
+                          <span className="text-[10px] sm:text-xs font-normal text-emerald-100/95 truncate max-w-full mt-0.5 leading-none px-0.5">
+                            {cell.word.meaning}
+                          </span>
+                        </>
+                      )}
                     </div>
                   ) : (
-                    <span className={`truncate max-w-full px-0.5 font-normal tracking-wide leading-none ${hanziSizeClass}`}>
-                      {cell.word.hanzi}
-                    </span>
+                    isHanziToPinyin ? (
+                      <span className={`truncate max-w-full px-1 text-center leading-tight ${cellPinyinSizeClass}`}>
+                        {cell.word.pinyin}
+                      </span>
+                    ) : (
+                      <span className={`truncate max-w-full px-0.5 font-normal tracking-wide leading-none ${hanziSizeClass}`}>
+                        {cell.word.hanzi}
+                      </span>
+                    )
                   )}
                 </button>
               );
@@ -907,6 +1035,9 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Hoàn thành thử thách! 🎉</h1>
           </div>
+          <p className="text-xs sm:text-sm text-indigo-200 -mt-2 mb-2">
+            Chế độ: <span className="font-bold text-white">{state.promptMode === 'hanzi_to_pinyin' ? 'Nhìn Chữ Hán ➔ Chọn Pinyin' : 'Nhìn Pinyin ➔ Chọn Chữ Hán'}</span> · Bàn {state.mode}
+          </p>
 
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-6">

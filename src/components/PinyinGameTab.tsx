@@ -23,7 +23,7 @@ import { usePinyinGame, PINYIN_GAME_TIME_LIMIT } from '@/lib/usePinyinGame';
 import { speak } from '@/lib/speech';
 import { RewardOverlay, ConfettiRain } from './RewardEffects';
 import { useRewardEffects } from '@/lib/useRewardEffects';
-import { startBGM, stopBGM, playWrongSound, playVictorySound } from '@/lib/soundEffects';
+import { playWrongSound, playVictorySound } from '@/lib/soundEffects';
 
 interface PinyinGameTabProps {
   vocab: Vocab[];
@@ -102,18 +102,6 @@ export function PinyinGameTab({ vocab, onSetMemoryBucket }: PinyinGameTabProps) 
       return () => clearTimeout(t);
     }
   }, [state.phase, state.currentIndex]);
-
-  // Audio lifecycle effect
-  useEffect(() => {
-    if (state.phase === 'playing') {
-      startBGM(state.timePressure ? 'energetic' : 'relaxed');
-    } else {
-      stopBGM();
-    }
-    return () => {
-      stopBGM();
-    };
-  }, [state.phase, state.timePressure]);
 
   useEffect(() => {
     if (state.phase === 'result') {
