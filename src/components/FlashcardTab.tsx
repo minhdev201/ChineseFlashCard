@@ -144,7 +144,7 @@ export function FlashcardTab({
   onSetMemoryBucket,
   onRecordReview,
 }: FlashcardTabProps) {
-  const [bucketFilter, setBucketFilter] = useState<BucketFilter>('all');
+  const [bucketFilter, setBucketFilter] = useState<BucketFilter>('unremembered');
   const bucketDropdownRef = useRef<HTMLDivElement>(null);
   const [bucketDropdownOpen, setBucketDropdownOpen] = useState(false);
 
@@ -169,11 +169,11 @@ export function FlashcardTab({
     return counts;
   }, [vocab]);
 
-  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [sortMode, setSortMode] = useState<SortMode>('oldest');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
-  const prevBucketFilter = useRef<BucketFilter>('all');
+  const prevBucketFilter = useRef<BucketFilter>('unremembered');
   const prevVocabLength = useRef<number>(vocab.length);
   const prevSortMode = useRef<SortMode>(sortMode);
 
@@ -1062,9 +1062,6 @@ export function FlashcardTab({
           >
             {/* Header row inside interactive card */}
             <div className="w-full flex items-center justify-between">
-              <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5">
-                <Keyboard className="w-3.5 h-3.5" /> Tập gõ Chữ Hán
-              </span>
 
               {input && (
                 <button

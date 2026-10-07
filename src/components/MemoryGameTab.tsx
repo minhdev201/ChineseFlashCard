@@ -20,12 +20,17 @@ import {
   ChevronDown,
   Check,
   Languages,
+  Volume2,
+  PenTool,
+  X,
+  Keyboard,
 } from 'lucide-react';
 import type { Vocab, MemoryBucket } from '@/lib/types';
 import { useMemoryGame, GAME_MODE_COUNTS, TIME_PRESSURE_SECONDS, type GameMode, type GamePromptMode } from '@/lib/useMemoryGame';
 import { RewardOverlay, ComboFlashBanner, ConfettiRain } from './RewardEffects';
 import { useRewardEffects } from '@/lib/useRewardEffects';
 import { playWrongSound, playVictorySound } from '@/lib/soundEffects';
+import { speak } from '@/lib/speech';
 
 interface MemoryGameTabProps {
   vocab: Vocab[];
@@ -51,6 +56,15 @@ function shuffleArray<T>(arr: T[]): T[] {
   return result;
 }
 
+function getScratchpadHanziSize(text: string): { fontSize: string; letterSpacing: string } {
+  const len = text.length;
+  if (len <= 2) return { fontSize: 'clamp(2.2rem, 5vw, 2.85rem)', letterSpacing: '0.12em' };
+  if (len <= 4) return { fontSize: 'clamp(1.75rem, 4vw, 2.2rem)', letterSpacing: '0.08em' };
+  if (len <= 6) return { fontSize: 'clamp(1.35rem, 3vw, 1.7rem)', letterSpacing: '0.04em' };
+  if (len <= 8) return { fontSize: 'clamp(1.1rem, 2.4vw, 1.35rem)', letterSpacing: '0.02em' };
+  return { fontSize: 'clamp(0.95rem, 2vw, 1.15rem)', letterSpacing: '0em' };
+}
+
 export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
   const { state, startGame, selectCell, skipWord, resetGame, playAgain } = useMemoryGame();
   const { bursts, popups, comboFlashKey, comboForFlash, triggerCorrect, removeBurst, removePopup, resetEffects } = useRewardEffects();
@@ -70,11 +84,21 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     }
   };
 
-  const [filterBucket, setFilterBucket] = useState<FilterBucket>('all');
+  const [isPromptFlipped, setIsPromptFlipped] = useState(false);
+
+  // Tự động lật lại mặt trước chữ Hán khi đổi từ hoặc đổi trạng thái trò chơi
+  useEffect(() => {
+    setIsPromptFlipped(false);
+  }, [state.currentWordIndex, state.phase]);
+
+  const [filterBucket, setFilterBucket] = useState<FilterBucket>('unremembered');
+  const [scratchpadText, setScratchpadText] = useState('');
+  const desktopScratchpadRef = useRef<HTMLInputElement>(null);
+  const mobileScratchpadRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [timePressure, setTimePressure] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [sortMode, setSortMode] = useState<SortMode>('oldest');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -210,7 +234,9 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
     resetGame();
     setSelectedIds(new Set());
     setSearchQuery('');
-    setFilterBucket('all');
+    setScratchpadText('');
+    setFilterBucket('unremembered');
+    setSortMode('oldest');
   };
 
   useEffect(() => {
@@ -266,11 +292,10 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                   key={modeKey}
                   type="button"
                   onClick={() => handleModeChange(modeKey)}
-                  className={`p-3.5 sm:p-4 rounded-xl border-2 font-bold text-center transition-all flex flex-col items-center justify-between ${
-                    isSelected
+                  className={`p-3.5 sm:p-4 rounded-xl border-2 font-bold text-center transition-all flex flex-col items-center justify-between ${isSelected
                       ? 'border-indigo-600 bg-indigo-50/80 text-indigo-900 shadow-md ring-2 ring-indigo-500/20'
                       : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border mb-1 ${modeLabels[modeKey].color}`}>
                     {modeLabels[modeKey].badge}
@@ -295,16 +320,14 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             <button
               type="button"
               onClick={() => handlePromptModeChange('pinyin_to_hanzi')}
-              className={`p-4 rounded-xl border-2 text-left transition-all flex items-start gap-3.5 ${
-                promptMode === 'pinyin_to_hanzi'
+              className={`p-4 rounded-xl border-2 text-left transition-all flex items-start gap-3.5 ${promptMode === 'pinyin_to_hanzi'
                   ? 'border-indigo-600 bg-indigo-50/80 text-indigo-950 shadow-md ring-2 ring-indigo-500/20'
                   : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50/80'
-              }`}
+                }`}
             >
               <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                  promptMode === 'pinyin_to_hanzi' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'
-                }`}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${promptMode === 'pinyin_to_hanzi' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                  }`}
               >
                 <Languages className="w-5 h-5" />
               </div>
@@ -324,16 +347,14 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
             <button
               type="button"
               onClick={() => handlePromptModeChange('hanzi_to_pinyin')}
-              className={`p-4 rounded-xl border-2 text-left transition-all flex items-start gap-3.5 ${
-                promptMode === 'hanzi_to_pinyin'
+              className={`p-4 rounded-xl border-2 text-left transition-all flex items-start gap-3.5 ${promptMode === 'hanzi_to_pinyin'
                   ? 'border-indigo-600 bg-indigo-50/80 text-indigo-950 shadow-md ring-2 ring-indigo-500/20'
                   : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50/80'
-              }`}
+                }`}
             >
               <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                  promptMode === 'hanzi_to_pinyin' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'
-                }`}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${promptMode === 'hanzi_to_pinyin' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                  }`}
               >
                 <Sparkles className="w-5 h-5" />
               </div>
@@ -355,23 +376,20 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
         {/* Time Pressure Option */}
         <div
           onClick={() => setTimePressure((v) => !v)}
-          className={`cursor-pointer rounded-2xl p-4 border-2 transition-all select-none ${
-            timePressure
+          className={`cursor-pointer rounded-2xl p-4 border-2 transition-all select-none ${timePressure
               ? 'border-amber-500 bg-gradient-to-br from-amber-50/90 to-orange-50/90 shadow-md ring-2 ring-amber-400/20'
               : 'border-slate-200 bg-white/90 hover:border-amber-300 hover:bg-amber-50/20'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                timePressure ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-400'
-              }`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${timePressure ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-400'
+                }`}>
                 <Timer className="w-5 h-5" />
               </div>
               <div>
-                <div className={`font-bold text-sm ${
-                  timePressure ? 'text-amber-900' : 'text-slate-700'
-                }`}>
+                <div className={`font-bold text-sm ${timePressure ? 'text-amber-900' : 'text-slate-700'
+                  }`}>
                   Áp lực thời gian (Time Pressure)
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5">
@@ -380,12 +398,10 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               </div>
             </div>
             {/* Toggle switch */}
-            <div className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
-              timePressure ? 'bg-amber-500' : 'bg-slate-200'
-            }`}>
-              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${
-                timePressure ? 'left-6' : 'left-0.5'
-              }`} />
+            <div className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${timePressure ? 'bg-amber-500' : 'bg-slate-200'
+              }`}>
+              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${timePressure ? 'left-6' : 'left-0.5'
+                }`} />
             </div>
           </div>
           {timePressure && (
@@ -484,11 +500,10 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                 <button
                   key={bucket}
                   onClick={() => setFilterBucket(bucket)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-                    isActive
+                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${isActive
                       ? 'bg-indigo-600 text-white shadow-sm font-semibold'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                  }`}
+                    }`}
                 >
                   {labels[bucket]}
                 </button>
@@ -513,11 +528,10 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               <button
                 type="button"
                 onClick={() => setSortDropdownOpen((s) => !s)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
-                  sortDropdownOpen
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${sortDropdownOpen
                     ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                     : 'text-slate-700 bg-white border-slate-200 hover:bg-slate-50'
-                }`}
+                  }`}
                 title="Chọn thứ tự hiển thị từ vựng"
               >
                 {(() => {
@@ -544,11 +558,10 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                           setSortMode(opt.value);
                           setSortDropdownOpen(false);
                         }}
-                        className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium transition-colors ${
-                          isActive
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium transition-colors ${isActive
                             ? 'bg-indigo-50 text-indigo-700 font-semibold'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                        }`}
+                          }`}
                       >
                         <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
                         <span>{opt.label}</span>
@@ -574,18 +587,16 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
                     key={word.id}
                     onClick={() => toggleWord(word.id)}
                     disabled={!isSelected && selectedIds.size >= targetCount}
-                    className={`relative flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all ${
-                      isSelected
+                    className={`relative flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all ${isSelected
                         ? 'border-indigo-500 bg-indigo-50/70 shadow-sm'
                         : selectedIds.size >= targetCount
-                        ? 'border-slate-200 bg-slate-50/50 opacity-40 cursor-not-allowed'
-                        : 'border-slate-200/80 bg-white hover:border-indigo-300 hover:bg-indigo-50/30'
-                    }`}
+                          ? 'border-slate-200 bg-slate-50/50 opacity-40 cursor-not-allowed'
+                          : 'border-slate-200/80 bg-white hover:border-indigo-300 hover:bg-indigo-50/30'
+                      }`}
                   >
                     <div
-                      className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${
-                        isSelected ? 'bg-indigo-600 border-indigo-600 shadow-sm' : 'border-slate-300 bg-white'
-                      }`}
+                      className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-sm' : 'border-slate-300 bg-white'
+                        }`}
                     >
                       {isSelected && (
                         <CheckCircle2 className="w-3.5 h-3.5 text-white" />
@@ -630,26 +641,26 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
       pinyinLen > 14
         ? 'text-xl xl:text-2xl'
         : pinyinLen > 10
-        ? 'text-2xl xl:text-3xl'
-        : pinyinLen > 7
-        ? 'text-3xl xl:text-4xl'
-        : 'text-4xl xl:text-5xl';
+          ? 'text-2xl xl:text-3xl'
+          : pinyinLen > 7
+            ? 'text-3xl xl:text-4xl'
+            : 'text-4xl xl:text-5xl';
 
     const mobilePinyinSize =
       pinyinLen > 14
         ? 'text-xs sm:text-sm'
         : pinyinLen > 10
-        ? 'text-sm sm:text-base'
-        : pinyinLen > 7
-        ? 'text-base sm:text-lg'
-        : 'text-lg sm:text-xl';
+          ? 'text-sm sm:text-base'
+          : pinyinLen > 7
+            ? 'text-base sm:text-lg'
+            : 'text-lg sm:text-xl';
 
     const gridColsClass =
       state.mode === '8x5'
         ? 'grid-cols-5 sm:grid-cols-8'
         : state.mode === '7x5'
-        ? 'grid-cols-5 sm:grid-cols-7'
-        : 'grid-cols-5 sm:grid-cols-6';
+          ? 'grid-cols-5 sm:grid-cols-7'
+          : 'grid-cols-5 sm:grid-cols-6';
 
     // Time pressure helpers
     const timePct = state.timePressure ? (state.timeLeft / TIME_PRESSURE_SECONDS) * 100 : 100;
@@ -658,80 +669,320 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
       ? state.timeLeft <= 5
         ? 'bg-rose-500'
         : state.timeLeft <= 10
-        ? 'bg-amber-400'
-        : 'bg-emerald-500'
+          ? 'bg-amber-400'
+          : 'bg-emerald-500'
       : 'bg-indigo-500';
 
     return (
       <>
-      <div className="memory-game-playing-container flex flex-col lg:flex-row gap-2 lg:gap-4 overflow-hidden">
-        {/* Mobile compact header (< lg) */}
-        <div className="lg:hidden shrink-0 flex flex-col gap-1.5 bg-white/95 backdrop-blur-sm rounded-xl p-2 border border-slate-200/90 shadow-sm">
-          {/* Countdown timer bar (time pressure) */}
-          {state.timePressure && (
-            <div className="relative w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-1000 ${timerBarColor} ${isUrgent ? 'animate-pulse' : ''}`}
-                style={{ width: `${timePct}%` }}
-              />
-            </div>
-          )}
+        <div className="memory-game-playing-container flex flex-col lg:flex-row gap-2 lg:gap-4 overflow-hidden">
+          {/* Mobile compact header (< lg) */}
+          <div className="lg:hidden shrink-0 flex flex-col gap-1.5 bg-white/95 backdrop-blur-sm rounded-xl p-2 border border-slate-200/90 shadow-sm">
+            {/* Countdown timer bar (time pressure) */}
+            {state.timePressure && (
+              <div className="relative w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ${timerBarColor} ${isUrgent ? 'animate-pulse' : ''}`}
+                  style={{ width: `${timePct}%` }}
+                />
+              </div>
+            )}
 
-          {/* Row 1: Target word banner & Quick action buttons */}
-          <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-white transition-colors shadow-md ${
-            isUrgent
-              ? 'bg-gradient-to-r from-rose-600 to-orange-600 shadow-rose-900/20'
-              : 'bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/20'
-          }`}>
-            <div className="min-w-0 flex-1 flex items-baseline gap-2">
-              <span className="text-[10px] text-indigo-300 uppercase font-bold shrink-0 tracking-wider">
-                {isHanziToPinyin ? 'Tìm Pinyin của:' : 'Tìm:'}
-              </span>
-              {isHanziToPinyin ? (
-                <span className="font-bold tracking-wider break-all min-w-0 text-amber-300 text-xl sm:text-2xl">
-                  {currentWord.hanzi}
-                </span>
-              ) : (
-                <span className={`font-extrabold tracking-wide break-all min-w-0 text-amber-300 ${mobilePinyinSize}`}>
-                  {currentWord.pinyin}
-                </span>
-              )}
+            {/* Row 1: Target word banner & Quick action buttons */}
+            <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-white transition-colors shadow-md ${isUrgent
+                ? 'bg-gradient-to-r from-rose-600 to-orange-600 shadow-rose-900/20'
+                : 'bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/20'
+              }`}>
+              <div className="min-w-0 flex-1 flex items-center gap-2">
+                {isHanziToPinyin ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsPromptFlipped((v) => !v)}
+                    className="flex items-center gap-2 text-left min-w-0 flex-1 active:scale-98 transition-transform"
+                    title={isPromptFlipped ? 'Bấm để lật lại Chữ Hán' : 'Bấm chữ Hán để lật xem gợi ý Pinyin'}
+                  >
+                    {isPromptFlipped ? (
+                      <div className="min-w-0 flex-1 flex flex-col justify-center">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-amber-300 uppercase font-bold shrink-0">💡 Gợi ý:</span>
+                          <span className="font-extrabold text-amber-300 text-base sm:text-lg truncate">{currentWord.pinyin}</span>
+                          <span className="text-[9px] text-slate-300 bg-white/20 px-1.5 py-0.5 rounded-full shrink-0 ml-auto">Lật lại</span>
+                        </div>
+                        <div className="text-[11px] text-slate-300 truncate">
+                          <span className="text-white font-medium">{currentWord.hanzi}</span> · <span className="text-emerald-200">{currentWord.meaning}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                        <span className="text-[10px] text-indigo-300 uppercase font-bold shrink-0 tracking-wider">
+                          Tìm Pinyin của:
+                        </span>
+                        <span className="font-bold tracking-wider break-all min-w-0 text-amber-300 text-xl sm:text-2xl">
+                          {currentWord.hanzi}
+                        </span>
+                        <span className="text-[10px] text-indigo-200 bg-indigo-500/30 px-2 py-0.5 rounded-full shrink-0 border border-indigo-400/30 flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5 text-amber-400 animate-pulse" />
+                          Gợi ý
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                ) : (
+                  <div className="min-w-0 flex-1 flex items-baseline gap-2">
+                    <span className="text-[10px] text-indigo-300 uppercase font-bold shrink-0 tracking-wider">
+                      Tìm:
+                    </span>
+                    <span className={`font-extrabold tracking-wide break-all min-w-0 text-amber-300 ${mobilePinyinSize}`}>
+                      {currentWord.pinyin}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {state.timePressure && (
+                  <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${isUrgent ? 'bg-rose-500 text-white animate-pulse' : 'bg-white/20 text-white'}`}>
+                    {state.timeLeft}s
+                  </span>
+                )}
+                <button
+                  onClick={skipWord}
+                  className="px-2.5 py-1 bg-white/15 hover:bg-white/25 active:bg-white/35 text-white rounded-lg text-xs font-medium transition-colors"
+                >
+                  Bỏ qua
+                </button>
+                <button
+                  onClick={handlePlayAgain}
+                  className="p-1.5 bg-white/15 hover:bg-white/25 active:bg-white/35 text-white rounded-lg transition-colors"
+                  title="Chơi lại bàn này (trộn vị trí thẻ)"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={resetGame}
+                  className="p-1.5 bg-rose-500/30 hover:bg-rose-500/40 text-white rounded-lg transition-colors"
+                  title="Thoát"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {state.timePressure && (
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${isUrgent ? 'bg-rose-500 text-white animate-pulse' : 'bg-white/20 text-white'}`}>
-                  {state.timeLeft}s
+
+            {/* Ô text tập gõ chữ Hán (Mobile Tianzige như ở Flashcard) */}
+            <div className="rounded-xl bg-white border border-slate-200/90 shadow-sm p-2 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                {scratchpadText && (
+                  <button
+                    type="button"
+                    onClick={() => setScratchpadText('')}
+                    className="p-1 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full transition-colors"
+                    title="Xóa chữ"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              <div
+                className="relative flex items-center justify-center p-2 rounded-lg bg-amber-50/50 border-2 border-dashed border-red-300/80 shadow-inner min-h-[58px] cursor-text"
+                onClick={() => mobileScratchpadRef.current?.focus()}
+              >
+                <div className="absolute inset-0 pointer-events-none opacity-30 flex items-center justify-center">
+                  <div className="w-full h-[1px] bg-red-400"></div>
+                  <div className="h-full w-[1px] bg-red-400 absolute"></div>
+                  <div className="w-full h-full border border-red-400 absolute rounded-md"></div>
+                </div>
+
+                <input
+                  ref={mobileScratchpadRef}
+                  type="text"
+                  value={scratchpadText}
+                  onChange={(e) => setScratchpadText(e.target.value)}
+                  style={{
+                    fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                    ...getScratchpadHanziSize(scratchpadText || '中'),
+                  }}
+                  className="w-full text-center font-bold text-slate-900 placeholder:text-red-200/80 bg-transparent border-none outline-none px-2 z-10 leading-snug"
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Progress & Stats */}
+            <div className="flex items-center justify-between gap-2 text-xs px-1">
+              {/* Progress bar */}
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <span className="font-bold text-indigo-600 text-[11px] shrink-0 font-mono">{state.foundWords.size}/{totalWords}</span>
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-400 via-teal-400 to-indigo-500 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Quick stats */}
+              <div className="flex items-center gap-2 shrink-0 font-medium text-slate-700 text-[11px]">
+                <span className="flex items-center gap-1 bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-md border border-amber-200/60 font-semibold" title="Điểm">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                  {state.score}
                 </span>
-              )}
-              <button
-                onClick={skipWord}
-                className="px-2.5 py-1 bg-white/15 hover:bg-white/25 active:bg-white/35 text-white rounded-lg text-xs font-medium transition-colors"
-              >
-                Bỏ qua
-              </button>
-              <button
-                onClick={handlePlayAgain}
-                className="p-1.5 bg-white/15 hover:bg-white/25 active:bg-white/35 text-white rounded-lg transition-colors"
-                title="Chơi lại bàn này (trộn vị trí thẻ)"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={resetGame}
-                className="p-1.5 bg-rose-500/30 hover:bg-rose-500/40 text-white rounded-lg transition-colors"
-                title="Thoát"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-              </button>
+                <span className="flex items-center gap-1 bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded-md border border-sky-200/60 font-mono" title="Thời gian">
+                  <Clock className="w-3.5 h-3.5 text-sky-500" />
+                  {formatTime(state.elapsedTime)}
+                </span>
+                {state.combo > 0 ? (
+                  <span className="flex items-center gap-1 text-white font-bold bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                    <Flame className="w-3.5 h-3.5 fill-current" />
+                    x{state.combo}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-0.5 text-rose-500">
+                    <XCircle className="w-3.5 h-3.5" />
+                    {state.mistakes}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Row 2: Progress & Stats */}
-          <div className="flex items-center justify-between gap-2 text-xs px-1">
+          {/* Desktop left info panel (>= lg) */}
+          <div className="hidden lg:flex lg:w-64 xl:w-72 shrink-0 flex-col gap-2.5 overflow-y-auto pr-1">
+            {/* Target prompt card */}
+            {isHanziToPinyin ? (
+              <div className="flip-card-wrapper w-full">
+                <div
+                  onClick={() => setIsPromptFlipped((v) => !v)}
+                  className={`flip-card-inner cursor-pointer ${isPromptFlipped ? 'is-flipped' : ''}`}
+                  title={isPromptFlipped ? 'Bấm để lật lại Chữ Hán' : 'Bấm vào chữ Hán để xem gợi ý Pinyin'}
+                >
+                  {/* Mặt trước: Chữ Hán */}
+                  <div className="flip-card-front bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 xl:p-5 text-white shadow-xl border border-indigo-500/20 text-center flex flex-col justify-center items-center min-h-[145px] relative overflow-hidden group hover:border-indigo-400/40 transition-colors">
+                    <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
+                    <div className="font-normal tracking-wide py-1 break-words max-w-full leading-tight text-amber-300 drop-shadow-sm text-4xl xl:text-5xl group-hover:scale-105 transition-transform">
+                      {currentWord.hanzi}
+                    </div>
+                  </div>
+
+                  {/* Mặt sau: Thẻ Pinyin gợi ý (Pinyin 1 dòng, Chữ Hán 1 dòng, Nghĩa 1 dòng) */}
+                  <div className="flip-card-back bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 rounded-2xl p-4 xl:p-5 text-white shadow-2xl border-2 border-amber-400/40 text-center flex flex-col justify-center items-center min-h-[145px] relative overflow-hidden">
+                    <div className="absolute -left-4 -top-4 w-28 h-28 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
+
+                    {/* Dòng 1: Pinyin */}
+                    <div className="font-extrabold tracking-wide py-0.5 break-words max-w-full leading-tight text-amber-300 drop-shadow-md text-2xl xl:text-3xl">
+                      {currentWord.pinyin}
+                    </div>
+
+                    {/* Dòng 2: Chữ Hán */}
+                    <div className="font-normal tracking-wider py-0.5 break-words max-w-full leading-tight text-white drop-shadow-sm text-lg xl:text-xl">
+                      {currentWord.hanzi}
+                    </div>
+
+                    {/* Dòng 3: Nghĩa */}
+                    <div className="font-medium py-0.5 break-words max-w-full leading-tight text-emerald-200 text-xs xl:text-sm px-1">
+                      {currentWord.meaning}
+                    </div>
+
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speak(currentWord.hanzi);
+                        }}
+                        className="inline-flex items-center gap-1 text-[10px] text-indigo-200 bg-white/10 hover:bg-white/20 active:bg-white/30 px-2 py-0.5 rounded-md transition-colors"
+                        title="Nghe phát âm"
+                      >
+                        <Volume2 className="w-3 h-3 text-amber-300" />
+                        <span>Phát âm</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-xl border border-indigo-500/20 text-center flex flex-col justify-center min-h-[120px] overflow-hidden relative">
+                <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
+                <div className="inline-flex items-center justify-center gap-1.5 text-[11px] text-indigo-300 mb-1 uppercase tracking-widest font-semibold">
+                  <Target className="w-3.5 h-3.5 text-amber-400" />
+                  Tìm chữ có Pinyin
+                </div>
+                <div className={`font-extrabold tracking-wide py-1 break-words max-w-full leading-tight text-amber-300 drop-shadow-sm ${desktopPinyinSize}`}>
+                  {currentWord.pinyin}
+                </div>
+              </div>
+            )}
+
+            {/* Ô text tập gõ chữ Hán (Desktop Tianzige như ở Flashcard) */}
+            <div className="rounded-2xl bg-white border border-slate-200/90 shadow-sm flex flex-col p-3 transition-all hover:border-indigo-300">
+              {/* Header row */}
+              <div className="w-full flex items-center justify-between mb-2">
+                {scratchpadText && (
+                  <button
+                    type="button"
+                    onClick={() => setScratchpadText('')}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full transition-colors"
+                    title="Xóa chữ"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Central Tianzige grid container with interactive Input */}
+              <div
+                className="w-full flex items-center justify-center cursor-text"
+                onClick={() => desktopScratchpadRef.current?.focus()}
+              >
+                <div className="relative flex items-center justify-center p-3 rounded-2xl transition-all w-full bg-amber-50/50 border-2 border-dashed border-red-300/80 shadow-inner min-h-[110px] xl:min-h-[125px]">
+                  <div className="absolute inset-0 pointer-events-none opacity-30 flex items-center justify-center">
+                    <div className="w-full h-[1px] bg-red-400"></div>
+                    <div className="h-full w-[1px] bg-red-400 absolute"></div>
+                    <div className="w-full h-full border border-red-400 absolute rounded-xl"></div>
+                  </div>
+
+                  <input
+                    ref={desktopScratchpadRef}
+                    type="text"
+                    value={scratchpadText}
+                    onChange={(e) => setScratchpadText(e.target.value)}
+                    style={{
+                      fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
+                      ...getScratchpadHanziSize(scratchpadText || '中'),
+                    }}
+                    className="w-full text-center font-bold text-slate-900 placeholder:text-red-200/80 bg-transparent border-none outline-none px-2 z-10 leading-snug"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Time pressure countdown (desktop) */}
+            {state.timePressure && (
+              <div className={`rounded-2xl p-3.5 border shadow-sm transition-colors ${isUrgent ? 'bg-rose-50/90 border-rose-300' : 'bg-white/90 border-slate-200/80'
+                }`}>
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className={`flex items-center gap-1.5 font-semibold ${isUrgent ? 'text-rose-600' : 'text-slate-600'}`}>
+                    <Timer className="w-4 h-4" />
+                    Thời gian còn lại
+                  </span>
+                  <span className={`font-bold font-mono text-lg ${isUrgent ? 'text-rose-600 animate-pulse' : 'text-emerald-600'}`}>
+                    {state.timeLeft}s
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 ${timerBarColor} ${isUrgent ? 'animate-pulse' : ''}`}
+                    style={{ width: `${timePct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Progress bar */}
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-              <span className="font-bold text-indigo-600 text-[11px] shrink-0 font-mono">{state.foundWords.size}/{totalWords}</span>
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3.5 border border-slate-200/80 shadow-sm">
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+                <span className="font-semibold text-slate-600">Tiến độ hoàn thành</span>
+                <span className="font-bold font-mono text-indigo-600">{state.foundWords.size}/{totalWords}</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-emerald-400 via-teal-400 to-indigo-500 h-full rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
@@ -739,281 +990,218 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               </div>
             </div>
 
-            {/* Quick stats */}
-            <div className="flex items-center gap-2 shrink-0 font-medium text-slate-700 text-[11px]">
-              <span className="flex items-center gap-1 bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-md border border-amber-200/60 font-semibold" title="Điểm">
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                {state.score}
-              </span>
-              <span className="flex items-center gap-1 bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded-md border border-sky-200/60 font-mono" title="Thời gian">
-                <Clock className="w-3.5 h-3.5 text-sky-500" />
-                {formatTime(state.elapsedTime)}
-              </span>
+            {/* Stats cards */}
+            <div className="grid grid-cols-1 gap-2">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 border border-slate-200/80 shadow-sm flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center shrink-0">
+                  <Trophy className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Điểm tích lũy</div>
+                  <div className="text-lg font-bold text-slate-800 font-mono">{state.score}</div>
+                </div>
+              </div>
+
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 border border-slate-200/80 shadow-sm flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-200/60 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-sky-500" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Thời gian chơi</div>
+                  <div className="text-lg font-bold font-mono text-slate-800">{formatTime(state.elapsedTime)}</div>
+                </div>
+              </div>
+
               {state.combo > 0 ? (
-                <span className="flex items-center gap-1 text-white font-bold bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 rounded-full shadow-sm animate-pulse">
-                  <Flame className="w-3.5 h-3.5 fill-current" />
-                  x{state.combo}
-                </span>
+                <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white rounded-2xl p-3 shadow-lg shadow-orange-500/20 flex items-center gap-3 animate-combo-glow">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <Flame className="w-5 h-5 text-white fill-current animate-flame" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-amber-100 font-medium">Combo chuỗi đúng</div>
+                    <div className="text-xl font-black font-mono">x{state.combo}</div>
+                  </div>
+                </div>
               ) : (
-                <span className="flex items-center gap-0.5 text-rose-500">
-                  <XCircle className="w-3.5 h-3.5" />
-                  {state.mistakes}
-                </span>
+                <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 border border-slate-200/80 shadow-sm flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200/60 flex items-center justify-center shrink-0">
+                    <XCircle className="w-5 h-5 text-rose-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400 font-medium">Số lần sai</div>
+                    <div className="text-lg font-bold text-slate-800 font-mono">{state.mistakes}</div>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Desktop left info panel (>= lg) */}
-        <div className="hidden lg:flex lg:w-64 xl:w-72 shrink-0 flex-col gap-3">
-          {/* Target prompt card */}
-          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-xl border border-indigo-500/20 text-center flex flex-col justify-center min-h-[120px] overflow-hidden relative">
-            <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
-            <div className="inline-flex items-center justify-center gap-1.5 text-[11px] text-indigo-300 mb-1.5 uppercase tracking-widest font-semibold">
-              <Target className="w-3.5 h-3.5 text-amber-400" />
-              {isHanziToPinyin ? 'Tìm Pinyin của chữ' : 'Tìm chữ có Pinyin'}
-            </div>
-            {isHanziToPinyin ? (
-              <div className="font-normal tracking-wide py-1 break-words max-w-full leading-tight text-amber-300 drop-shadow-sm text-4xl xl:text-5xl">
-                {currentWord.hanzi}
-              </div>
-            ) : (
-              <div className={`font-extrabold tracking-wide py-1 break-words max-w-full leading-tight text-amber-300 drop-shadow-sm ${desktopPinyinSize}`}>
-                {currentWord.pinyin}
-              </div>
-            )}
-          </div>
-
-          {/* Time pressure countdown (desktop) */}
-          {state.timePressure && (
-            <div className={`rounded-2xl p-3.5 border shadow-sm transition-colors ${
-              isUrgent ? 'bg-rose-50/90 border-rose-300' : 'bg-white/90 border-slate-200/80'
-            }`}>
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className={`flex items-center gap-1.5 font-semibold ${isUrgent ? 'text-rose-600' : 'text-slate-600'}`}>
-                  <Timer className="w-4 h-4" />
-                  Thời gian còn lại
-                </span>
-                <span className={`font-bold font-mono text-lg ${isUrgent ? 'text-rose-600 animate-pulse' : 'text-emerald-600'}`}>
-                  {state.timeLeft}s
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-1000 ${timerBarColor} ${isUrgent ? 'animate-pulse' : ''}`}
-                  style={{ width: `${timePct}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Progress bar */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3.5 border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
-              <span className="font-semibold text-slate-600">Tiến độ hoàn thành</span>
-              <span className="font-bold font-mono text-indigo-600">{state.foundWords.size}/{totalWords}</span>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-emerald-400 via-teal-400 to-indigo-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+            {/* Action buttons */}
+            <div className="flex flex-col gap-2 mt-auto">
+              <button
+                onClick={skipWord}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold rounded-xl transition-all text-sm"
+              >
+                Bỏ qua từ này
+              </button>
+              <button
+                onClick={handlePlayAgain}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl transition-all border border-indigo-200/80 text-sm"
+                title="Trộn lại các thẻ và chơi lại từ đầu"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Chơi lại bàn này
+              </button>
+              <button
+                onClick={resetGame}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-50/80 hover:bg-rose-100 text-rose-600 font-semibold rounded-xl transition-all border border-rose-200/80 text-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Thoát bàn chơi
+              </button>
             </div>
           </div>
 
-          {/* Stats cards */}
-          <div className="grid grid-cols-1 gap-2">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 border border-slate-200/80 shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center shrink-0">
-                <Trophy className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <div className="text-xs text-slate-400 font-medium">Điểm tích lũy</div>
-                <div className="text-lg font-bold text-slate-800 font-mono">{state.score}</div>
-              </div>
-            </div>
+          {/* Grid panel */}
+          <div className="flex-1 min-w-0 min-h-0 bg-slate-100/70 backdrop-blur-sm rounded-xl sm:rounded-2xl p-1.5 sm:p-3 border border-slate-200/90 shadow-inner flex flex-col overflow-hidden">
+            <div className={`memory-game-grid flex-1 grid ${gridColsClass} gap-1 sm:gap-2 memory-grid-container min-h-0`}>
+              {state.grid.map((cell, index) => {
+                const isCorrect = cell.state === 'correct';
+                const isWrong = cell.state === 'wrong';
+                const hanziLen = cell.word.hanzi.length;
+                const cellPinyinLen = cell.word.pinyin.length;
 
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 border border-slate-200/80 shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-200/60 flex items-center justify-center shrink-0">
-                <Clock className="w-5 h-5 text-sky-500" />
-              </div>
-              <div>
-                <div className="text-xs text-slate-400 font-medium">Thời gian chơi</div>
-                <div className="text-lg font-bold font-mono text-slate-800">{formatTime(state.elapsedTime)}</div>
-              </div>
-            </div>
+                const hanziSizeClass =
+                  hanziLen >= 4
+                    ? 'text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl'
+                    : hanziLen === 3
+                      ? 'text-base sm:text-xl md:text-2xl lg:text-3xl'
+                      : hanziLen === 2
+                        ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-[2.5rem]'
+                        : 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl';
 
-            {state.combo > 0 ? (
-              <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white rounded-2xl p-3 shadow-lg shadow-orange-500/20 flex items-center gap-3 animate-combo-glow">
-                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                  <Flame className="w-5 h-5 text-white fill-current animate-flame" />
-                </div>
-                <div>
-                  <div className="text-xs text-amber-100 font-medium">Combo chuỗi đúng</div>
-                  <div className="text-xl font-black font-mono">x{state.combo}</div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 border border-slate-200/80 shadow-sm flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200/60 flex items-center justify-center shrink-0">
-                  <XCircle className="w-5 h-5 text-rose-400" />
-                </div>
-                <div>
-                  <div className="text-xs text-slate-400 font-medium">Số lần sai</div>
-                  <div className="text-lg font-bold text-slate-800 font-mono">{state.mistakes}</div>
-                </div>
-              </div>
-            )}
-          </div>
+                const correctHanziSizeClass =
+                  hanziLen >= 4
+                    ? 'text-xs sm:text-sm md:text-base lg:text-lg'
+                    : hanziLen === 3
+                      ? 'text-sm sm:text-base md:text-lg lg:text-xl'
+                      : hanziLen === 2
+                        ? 'text-base sm:text-xl md:text-2xl lg:text-3xl'
+                        : 'text-lg sm:text-2xl md:text-3xl lg:text-4xl';
 
-          {/* Action buttons */}
-          <div className="flex flex-col gap-2 mt-auto">
-            <button
-              onClick={skipWord}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold rounded-xl transition-all text-sm"
-            >
-              Bỏ qua từ này
-            </button>
-            <button
-              onClick={handlePlayAgain}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl transition-all border border-indigo-200/80 text-sm"
-              title="Trộn lại các thẻ và chơi lại từ đầu"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Chơi lại bàn này
-            </button>
-            <button
-              onClick={resetGame}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-50/80 hover:bg-rose-100 text-rose-600 font-semibold rounded-xl transition-all border border-rose-200/80 text-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Thoát bàn chơi
-            </button>
-          </div>
-        </div>
+                const cellPinyinSizeClass =
+                  cellPinyinLen >= 15
+                    ? 'text-xs sm:text-sm md:text-base lg:text-lg font-bold tracking-tight'
+                    : cellPinyinLen >= 11
+                      ? 'text-sm sm:text-base md:text-lg lg:text-xl font-extrabold tracking-tight'
+                      : cellPinyinLen >= 7
+                        ? 'text-base sm:text-lg md:text-xl lg:text-2xl font-extrabold'
+                        : cellPinyinLen >= 4
+                          ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl font-extrabold'
+                          : 'text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold';
 
-        {/* Grid panel */}
-        <div className="flex-1 min-w-0 min-h-0 bg-slate-100/70 backdrop-blur-sm rounded-xl sm:rounded-2xl p-1.5 sm:p-3 border border-slate-200/90 shadow-inner flex flex-col overflow-hidden">
-          <div className={`memory-game-grid flex-1 grid ${gridColsClass} gap-1 sm:gap-2 memory-grid-container min-h-0`}>
-            {state.grid.map((cell, index) => {
-              const isCorrect = cell.state === 'correct';
-              const isWrong = cell.state === 'wrong';
-              const hanziLen = cell.word.hanzi.length;
-              const cellPinyinLen = cell.word.pinyin.length;
+                const solvedPinyinSize =
+                  cellPinyinLen >= 14
+                    ? 'text-xs sm:text-sm md:text-base font-extrabold'
+                    : cellPinyinLen >= 9
+                      ? 'text-sm sm:text-base md:text-lg font-extrabold'
+                      : 'text-base sm:text-lg md:text-xl font-extrabold';
 
-              const hanziSizeClass =
-                hanziLen >= 4
-                  ? 'text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl'
-                  : hanziLen === 3
-                  ? 'text-base sm:text-xl md:text-2xl lg:text-3xl'
-                  : hanziLen === 2
-                  ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-[2.5rem]'
-                  : 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl';
+                const solvedHanziSize =
+                  hanziLen >= 4
+                    ? 'text-xs sm:text-sm md:text-base font-normal'
+                    : hanziLen === 3
+                      ? 'text-sm sm:text-base md:text-lg font-normal'
+                      : 'text-base sm:text-lg md:text-xl font-normal';
 
-              const correctHanziSizeClass =
-                hanziLen >= 4
-                  ? 'text-xs sm:text-sm md:text-base lg:text-lg'
-                  : hanziLen === 3
-                  ? 'text-sm sm:text-base md:text-lg lg:text-xl'
-                  : hanziLen === 2
-                  ? 'text-base sm:text-xl md:text-2xl lg:text-3xl'
-                  : 'text-lg sm:text-2xl md:text-3xl lg:text-4xl';
+                const solvedMeaningSize =
+                  'text-[10px] sm:text-xs md:text-sm font-medium';
 
-              const cellPinyinSizeClass =
-                cellPinyinLen >= 15
-                  ? 'text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold tracking-tight'
-                  : cellPinyinLen >= 11
-                  ? 'text-xs sm:text-sm md:text-base lg:text-lg font-bold tracking-tight'
-                  : cellPinyinLen >= 7
-                  ? 'text-xs sm:text-base md:text-lg lg:text-xl font-bold'
-                  : cellPinyinLen >= 4
-                  ? 'text-sm sm:text-lg md:text-xl lg:text-2xl font-bold'
-                  : 'text-base sm:text-xl md:text-2xl lg:text-3xl font-bold';
+                return (
+                  <button
+                    key={`${cell.id}-${cell.word.id}`}
+                    onClick={(e) => {
+                      const prevCombo = state.combo;
+                      const currentWord = state.gameWords[state.currentWordIndex];
+                      const isTarget = currentWord && cell.word.id === currentWord.id && cell.state !== 'correct';
 
-              const correctPinyinSizeClass =
-                cellPinyinLen >= 15
-                  ? 'text-[10px] sm:text-xs md:text-sm font-semibold'
-                  : cellPinyinLen >= 11
-                  ? 'text-xs sm:text-xs md:text-sm font-bold'
-                  : cellPinyinLen >= 7
-                  ? 'text-xs sm:text-sm md:text-base font-bold'
-                  : 'text-sm sm:text-base md:text-lg font-bold';
+                      selectCell(cell.id);
 
-              return (
-                <button
-                  key={`${cell.id}-${cell.word.id}`}
-                  onClick={(e) => {
-                    const prevCombo = state.combo;
-                    const currentWord = state.gameWords[state.currentWordIndex];
-                    const isTarget = currentWord && cell.word.id === currentWord.id && cell.state !== 'correct';
-
-                    selectCell(cell.id);
-
-                    if (isTarget) {
-                      const newCombo = prevCombo + 1;
-                      const comboBonus = Math.floor(newCombo / 3) * 2;
-                      const pts = 10 + comboBonus;
-                      triggerCorrect(e.clientX, e.clientY, pts, newCombo);
-                    } else if (cell.state !== 'correct') {
-                      playWrongSound();
-                    }
-                  }}
-                  disabled={isCorrect}
-                  className={`memory-grid-cell flex items-center justify-center font-normal rounded-lg sm:rounded-xl border transition-all p-1 select-none ${
-                    isCorrect
-                      ? 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white border-emerald-400/40 shadow-[0_4px_12px_rgba(16,185,129,0.3)] scale-105 cursor-default animate-cell-pop'
-                      : isWrong
-                      ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white border-rose-400/40 shadow-[0_4px_12px_rgba(244,63,94,0.3)] animate-cell-shake'
-                      : 'bg-gradient-to-b from-white to-slate-50/90 text-slate-800 border-slate-200/90 shadow-[0_2px_4px_rgba(15,23,42,0.04),0_1px_1px_rgba(15,23,42,0.02)] hover:border-indigo-400 hover:bg-gradient-to-b hover:from-white hover:to-indigo-50/60 hover:text-indigo-900 hover:shadow-[0_4px_12px_rgba(99,102,241,0.16)] hover:-translate-y-0.5 active:translate-y-0 active:scale-95'
-                  }`}
-                  style={{
-                    animationDelay: `${index * 20}ms`,
-                  }}
-                >
-                  {isCorrect ? (
-                    <div className="flex flex-col items-center justify-center w-full min-w-0 h-full leading-tight text-center px-0.5">
-                      {isHanziToPinyin ? (
-                        <>
-                          <span className={`font-bold tracking-tight truncate max-w-full leading-tight drop-shadow-sm ${correctPinyinSizeClass}`}>
-                            {cell.word.pinyin}
-                          </span>
-                          <span className="text-[10px] sm:text-xs font-normal text-emerald-100/95 truncate max-w-full mt-0.5 leading-none px-0.5">
-                            {cell.word.hanzi} · {cell.word.meaning}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className={`font-normal tracking-wide truncate max-w-full leading-none drop-shadow-sm ${correctHanziSizeClass}`}>
-                            {cell.word.hanzi}
-                          </span>
-                          <span className="text-[10px] sm:text-xs font-normal text-emerald-100/95 truncate max-w-full mt-0.5 leading-none px-0.5">
-                            {cell.word.meaning}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    isHanziToPinyin ? (
-                      <span className={`truncate max-w-full px-1 text-center leading-tight ${cellPinyinSizeClass}`}>
-                        {cell.word.pinyin}
-                      </span>
+                      if (isTarget) {
+                        const newCombo = prevCombo + 1;
+                        const comboBonus = Math.floor(newCombo / 3) * 2;
+                        const pts = 10 + comboBonus;
+                        triggerCorrect(e.clientX, e.clientY, pts, newCombo);
+                      } else if (cell.state !== 'correct') {
+                        playWrongSound();
+                      }
+                    }}
+                    disabled={isCorrect}
+                    className={`memory-grid-cell flex items-center justify-center font-normal rounded-lg sm:rounded-xl border transition-all p-1 select-none ${isCorrect
+                        ? 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white border-emerald-400/40 shadow-[0_4px_12px_rgba(16,185,129,0.3)] scale-105 cursor-default animate-cell-pop'
+                        : isWrong
+                          ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white border-rose-400/40 shadow-[0_4px_12px_rgba(244,63,94,0.3)] animate-cell-shake'
+                          : 'bg-gradient-to-b from-white to-slate-50/90 text-slate-800 border-slate-200/90 shadow-[0_2px_4px_rgba(15,23,42,0.04),0_1px_1px_rgba(15,23,42,0.02)] hover:border-indigo-400 hover:bg-gradient-to-b hover:from-white hover:to-indigo-50/60 hover:text-indigo-900 hover:shadow-[0_4px_12px_rgba(99,102,241,0.16)] hover:-translate-y-0.5 active:translate-y-0 active:scale-95'
+                      }`}
+                    style={{
+                      animationDelay: `${index * 20}ms`,
+                    }}
+                  >
+                    {isCorrect ? (
+                      <div className="flex flex-col items-center justify-center w-full min-w-0 h-full leading-tight text-center px-0.5 py-0.5">
+                        {isHanziToPinyin ? (
+                          <>
+                            {/* Dòng 1: Pinyin */}
+                            <span className={`font-extrabold tracking-tight truncate max-w-full leading-tight drop-shadow-sm text-white ${solvedPinyinSize}`}>
+                              {cell.word.pinyin}
+                            </span>
+                            {/* Dòng 2: Chữ Hán */}
+                            <span className={`font-normal tracking-wide truncate max-w-full leading-tight text-emerald-100 drop-shadow-sm mt-0.5 ${solvedHanziSize}`}>
+                              {cell.word.hanzi}
+                            </span>
+                            {/* Dòng 3: Nghĩa */}
+                            <span className={`truncate max-w-full leading-tight text-emerald-200/95 mt-0.5 px-0.5 ${solvedMeaningSize}`}>
+                              {cell.word.meaning}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {/* Dòng 1: Chữ Hán */}
+                            <span className={`font-normal tracking-wide truncate max-w-full leading-none drop-shadow-sm ${correctHanziSizeClass}`}>
+                              {cell.word.hanzi}
+                            </span>
+                            {/* Dòng 2: Pinyin */}
+                            <span className="text-xs sm:text-sm md:text-base font-bold tracking-tight text-emerald-100 truncate max-w-full mt-0.5">
+                              {cell.word.pinyin}
+                            </span>
+                            {/* Dòng 3: Nghĩa */}
+                            <span className="text-[10px] sm:text-xs font-normal text-emerald-200/95 truncate max-w-full mt-0.5 leading-none px-0.5">
+                              {cell.word.meaning}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     ) : (
-                      <span className={`truncate max-w-full px-0.5 font-normal tracking-wide leading-none ${hanziSizeClass}`}>
-                        {cell.word.hanzi}
-                      </span>
-                    )
-                  )}
-                </button>
-              );
-            })}
+                      isHanziToPinyin ? (
+                        <span className={`truncate max-w-full px-1 text-center leading-tight drop-shadow-sm ${cellPinyinSizeClass}`}>
+                          {cell.word.pinyin}
+                        </span>
+                      ) : (
+                        <span className={`truncate max-w-full px-0.5 font-normal tracking-wide leading-none ${hanziSizeClass}`}>
+                          {cell.word.hanzi}
+                        </span>
+                      )
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Reward effects overlay */}
-      <RewardOverlay bursts={bursts} popups={popups} onBurstDone={removeBurst} onPopupDone={removePopup} />
-      <ComboFlashBanner combo={comboForFlash} flashKey={comboFlashKey} />
-    </>
+        {/* Reward effects overlay */}
+        <RewardOverlay bursts={bursts} popups={popups} onBurstDone={removeBurst} onPopupDone={removePopup} />
+        <ComboFlashBanner combo={comboForFlash} flashKey={comboFlashKey} />
+      </>
     );
   }
 
@@ -1098,11 +1286,10 @@ export function MemoryGameTab({ vocab }: MemoryGameTabProps) {
               return (
                 <div
                   key={word.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                    wasFound
+                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${wasFound
                       ? 'bg-emerald-50/60 border-emerald-200/80 text-emerald-900'
                       : 'bg-slate-50/60 border-slate-200/80 text-slate-700'
-                  }`}
+                    }`}
                 >
                   <div className="text-3xl font-normal text-slate-800">{word.hanzi}</div>
                   <div className="flex-1 min-w-0">

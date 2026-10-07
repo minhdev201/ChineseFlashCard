@@ -90,7 +90,6 @@ export function AuthScreen({ onSignIn, onSignUp }: AuthScreenProps) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ban@email.com"
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                   autoComplete="email"
                   autoFocus
