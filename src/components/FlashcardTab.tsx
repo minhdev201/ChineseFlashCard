@@ -1149,22 +1149,6 @@ export function FlashcardTab({
 
           {/* Feedback states & hotkeys footer */}
           <div className="space-y-3">
-            {feedback === 'correct' && (
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 animate-pop flex items-start gap-3 shadow-sm">
-                <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-sm">
-                  ✓
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-emerald-800">Chính xác xuất sắc!</h4>
-                  <p className="text-xs text-emerald-700 mt-0.5">
-                    Chữ Hán: <span className="font-extrabold">{current.hanzi}</span> · Pinyin:{' '}
-                    <span className="font-extrabold">{current.pinyin}</span>
-                    {current.meaning && ` · Nghĩa: ${current.meaning}`}
-                  </p>
-                </div>
-              </div>
-            )}
-
             {feedback === 'wrong' && (
               <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 animate-pop flex items-start gap-3 shadow-sm">
                 <div className="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-sm">
@@ -1178,20 +1162,6 @@ export function FlashcardTab({
                 </div>
               </div>
             )}
-
-            <div className="px-3 py-2.5 rounded-xl bg-slate-100/80 border border-slate-200/60 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
-              <div className="flex items-center gap-1.5">
-                <HelpCircle className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                <span>💡 <strong>Vuốt sang trái/phải</strong> (hoặc kéo chuột) để tiến/lùi từ.</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-slate-500">
-                <span className="bg-white px-1.5 py-0.5 rounded border text-indigo-600 font-bold">Tab</span> Bật/Tắt gõ
-                <span className="bg-white px-1.5 py-0.5 rounded border">← / Vuốt phải</span> Trước
-                <span className="bg-white px-1.5 py-0.5 rounded border">→ / Vuốt trái</span> Tiếp
-                <span className="bg-white px-1.5 py-0.5 rounded border">Space</span> Lật
-                <span className="bg-white px-1.5 py-0.5 rounded border">1/2/3</span> Đánh giá
-              </div>
-            </div>
           </div>
         </div>
       </div>
