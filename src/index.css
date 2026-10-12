@@ -275,5 +275,70 @@ input[type=number]::-webkit-outer-spin-button {
   transform: rotateY(180deg);
 }
 
+/* ── Print Styles for 2-Page Vocab Sheet ── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* CRITICAL: Completely remove #root from layout flow to prevent ghost pages */
+  #root {
+    display: none !important;
+  }
+
+  /* Make sure printable document is the only visible, active content */
+  #printable-document {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .print-page {
+    width: 100% !important;
+    height: 275mm !important; /* Safe height to avoid sub-pixel rounding overflow into page 3 */
+    max-height: 275mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-page-1 {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .print-page-2 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+
+
 
 

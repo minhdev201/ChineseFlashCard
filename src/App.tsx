@@ -8,14 +8,23 @@ import { AuthScreen } from '@/components/AuthScreen';
 import { CharacterNetworkTab } from '@/components/CharacterNetworkTab';
 import { MemoryGameTab } from '@/components/MemoryGameTab';
 import { PinyinGameTab } from '@/components/PinyinGameTab';
+import { PrintVocabTab } from '@/components/PrintVocabTab';
 import { useAuth } from '@/lib/useAuth';
 import { useVocabStore } from '@/lib/useVocabStore';
 import type { TabKey } from '@/lib/types';
 
 function App() {
   const [tab, setTab] = useState<TabKey>('flashcard');
+  const [printSelectedIds, setPrintSelectedIds] = useState<string[]>([]);
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const store = useVocabStore(user);
+
+  const handleOpenPrint = (ids?: string[]) => {
+    if (ids && ids.length > 0) {
+      setPrintSelectedIds(ids.slice(0, 20));
+    }
+    setTab('print');
+  };
 
 
 
@@ -86,6 +95,14 @@ function App() {
             vocab={store.vocab}
             onUpdate={store.updateVocab}
             onDelete={store.deleteVocab}
+            onOpenPrint={handleOpenPrint}
+          />
+        )}
+        {tab === 'print' && (
+          <PrintVocabTab
+            vocab={store.vocab}
+            initialSelectedIds={printSelectedIds}
+            onBackToList={() => setTab('list')}
           />
         )}
         {tab === 'stats' && (

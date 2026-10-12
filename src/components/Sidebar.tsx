@@ -13,6 +13,7 @@ import {
   Network,
   Gamepad2,
   PenTool,
+  Printer,
 } from 'lucide-react';
 import type { TabKey } from '@/lib/types';
 
@@ -31,9 +32,11 @@ const TABS: { key: TabKey; label: string; icon: typeof LayoutGrid; description: 
   { key: 'pinyin-game', label: 'Gõ Hán ngữ', icon: PenTool, description: 'Nhìn Pinyin gõ chữ Hán' },
   { key: 'add', label: 'Thêm từ', icon: PlusCircle, description: 'Thêm từ vựng mới vào kho' },
   { key: 'list', label: 'Danh sách', icon: Library, description: 'Quản lý & chỉnh sửa từ vựng' },
+  { key: 'print', label: 'In từ vựng', icon: Printer, description: 'In phiếu học & thẻ 2 trang' },
   { key: 'network', label: 'Mạng từ', icon: Network, description: 'Liên kết mạng lưới chữ Hán' },
   { key: 'stats', label: 'Dashboard', icon: LayoutDashboard, description: 'Tiến độ, thành tích & biểu đồ' },
 ];
+
 
 export function Sidebar({
   active,
@@ -54,17 +57,6 @@ export function Sidebar({
     <div className="flex flex-col h-full bg-slate-900 text-slate-100 border-r border-slate-800">
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
-            <span className="text-white text-xl font-extrabold tracking-wider">汉</span>
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-white tracking-wide leading-tight">
-              Hán Ngữ Flashcard
-            </h1>
-            <p className="text-xs text-indigo-300 font-medium">Luyện nhớ & gõ tiếng Trung</p>
-          </div>
-        </div>
         <button
           onClick={() => setMobileOpen(false)}
           className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
@@ -175,7 +167,6 @@ export function Sidebar({
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center font-bold text-white text-base shadow-sm">
               汉
             </div>
-            <span className="font-bold text-sm tracking-wide">Hán Ngữ Flashcard</span>
           </div>
         </div>
 

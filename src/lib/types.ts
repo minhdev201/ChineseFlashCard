@@ -31,4 +31,5 @@ export interface ActivityLog {
   added: number;
 }
 
-export type TabKey = 'flashcard' | 'add' | 'list' | 'stats' | 'network' | 'memory-game' | 'pinyin-game';
+export type TabKey = 'flashcard' | 'add' | 'list' | 'stats' | 'network' | 'memory-game' | 'pinyin-game' | 'print';
+

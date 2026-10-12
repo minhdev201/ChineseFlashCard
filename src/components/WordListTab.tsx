@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search, Volume2, Pencil, Trash2, X, AlertTriangle, Copy, Check, FileText } from 'lucide-react';
+import { Search, Volume2, Pencil, Trash2, X, AlertTriangle, Copy, Check, FileText, Printer, CheckSquare, Square } from 'lucide-react';
 import type { Vocab, MemoryBucket } from '@/lib/types';
 import { memoryBucketColor, memoryBucketLabel } from '@/lib/srs';
 import { speak } from '@/lib/speech';
@@ -9,14 +9,17 @@ interface WordListTabProps {
   vocab: Vocab[];
   onUpdate: (id: string, patch: Partial<Vocab>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onOpenPrint?: (selectedIds?: string[]) => void;
 }
 
-export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
+export function WordListTab({ vocab, onUpdate, onDelete, onOpenPrint }: WordListTabProps) {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Vocab | null>(null);
   const [deleting, setDeleting] = useState<Vocab | null>(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [quickCopied, setQuickCopied] = useState(false);
+  const [selectedForPrint, setSelectedForPrint] = useState<string[]>([]);
+  const [limitWarning, setLimitWarning] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -50,6 +53,16 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
         )}
       </div>
 
+      {/* Warning if exceeded 20 words */}
+      {limitWarning && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-3 text-amber-800 text-xs font-semibold flex items-center justify-between animate-slide-up">
+          <span>{limitWarning}</span>
+          <button onClick={() => setLimitWarning(null)} className="p-0.5 hover:bg-amber-100 rounded">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Header Info & Export Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <p className="text-sm font-semibold text-slate-600">
@@ -57,7 +70,23 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
         </p>
 
         {vocab.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {onOpenPrint && (
+              <button
+                onClick={() => onOpenPrint(selectedForPrint)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-xs font-bold transition-all shadow-sm shadow-indigo-600/25"
+                title="In tài liệu học tập hoặc Flashcard chuẩn 2 trang (Tối đa 20 từ)"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>In từ vựng (2 trang)</span>
+                {selectedForPrint.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 bg-white/20 rounded-full font-mono text-[10px]">
+                    {selectedForPrint.length}/20
+                  </span>
+                )}
+              </button>
+            )}
+
             <button
               onClick={() => {
                 const text = (query ? filtered : vocab).map((v) => v.hanzi.trim()).filter(Boolean).join(', ');
@@ -100,64 +129,131 @@ export function WordListTab({ vocab, onUpdate, onDelete }: WordListTabProps) {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((w) => (
-            <div
-              key={w.id}
-              className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200 hover:shadow-md transition-shadow animate-fade-in"
-            >
-              <button
-                onClick={() => speak(w.hanzi)}
-                className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shrink-0"
-                title="Phát âm"
+          {filtered.map((w) => {
+            const isSelected = selectedForPrint.includes(w.id);
+            const selectIndex = selectedForPrint.indexOf(w.id);
+            return (
+              <div
+                key={w.id}
+                className={`flex items-center gap-2 sm:gap-3 p-3 rounded-xl border transition-all animate-fade-in ${
+                  isSelected
+                    ? 'bg-indigo-50/60 border-indigo-300 shadow-sm'
+                    : 'bg-white border-slate-200 hover:shadow-md'
+                }`}
               >
-                <Volume2 className="w-4 h-4" />
-              </button>
+                {/* Print Selection Checkbox */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedForPrint((prev) => prev.filter((item) => item !== w.id));
+                      setLimitWarning(null);
+                    } else {
+                      if (selectedForPrint.length >= 20) {
+                        setLimitWarning('Chỉ được chọn tối đa 20 từ để in chuẩn 2 trang!');
+                        setTimeout(() => setLimitWarning(null), 3500);
+                        return;
+                      }
+                      setSelectedForPrint((prev) => [...prev, w.id]);
+                      setLimitWarning(null);
+                    }
+                  }}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors shrink-0"
+                  title={isSelected ? `Đã chọn #${selectIndex + 1} để in. Bấm để bỏ chọn` : 'Chọn để in (Tối đa 20 từ)'}
+                >
+                  {isSelected ? (
+                    <div className="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[11px] font-bold font-mono">
+                      {selectIndex + 1}
+                    </div>
+                  ) : (
+                    <Square className="w-5 h-5 text-slate-300 hover:text-slate-400" />
+                  )}
+                </button>
 
-              <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 items-center">
-                <div className="min-w-0">
-                  <span
-                    className="text-lg font-bold text-slate-900 block truncate"
-                    style={{ fontFamily: '"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif' }}
+                <button
+                  onClick={() => speak(w.hanzi)}
+                  className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shrink-0"
+                  title="Phát âm"
+                >
+                  <Volume2 className="w-4 h-4" />
+                </button>
+
+                <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 items-center">
+                  <div className="min-w-0">
+                    <span
+                      className="text-lg font-bold text-slate-900 block truncate"
+                      style={{ fontFamily: '"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif' }}
+                    >
+                      {w.hanzi}
+                    </span>
+                  </div>
+                  <div className="min-w-0 hidden sm:block">
+                    <span className="text-sm text-indigo-500 truncate block">{w.pinyin}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-sm text-slate-700 truncate block">{w.meaning}</span>
+                  </div>
+                  <div className="min-w-0 hidden sm:flex items-center gap-2 justify-end">
+                    <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${memoryBucketColor(w.memory_bucket)}`}>
+                      {memoryBucketLabel(w.memory_bucket)}
+                    </span>
+                    <span className="text-xs text-slate-400 whitespace-nowrap">
+                      Cập nhật: {w.last_reviewed_at || 'Chưa ôn'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setEditing(w)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    title="Sửa"
                   >
-                    {w.hanzi}
-                  </span>
-                </div>
-                <div className="min-w-0 hidden sm:block">
-                  <span className="text-sm text-indigo-500 truncate block">{w.pinyin}</span>
-                </div>
-                <div className="min-w-0">
-                  <span className="text-sm text-slate-700 truncate block">{w.meaning}</span>
-                </div>
-                <div className="min-w-0 hidden sm:flex items-center gap-2 justify-end">
-                  <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${memoryBucketColor(w.memory_bucket)}`}>
-                    {memoryBucketLabel(w.memory_bucket)}
-                  </span>
-                  <span className="text-xs text-slate-400 whitespace-nowrap">
-                    Cập nhật: {w.last_reviewed_at || 'Chưa ôn'}
-                  </span>
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleting(w)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    title="Xóa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => setEditing(w)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                  title="Sửa"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setDeleting(w)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                  title="Xóa"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      {/* Floating Bar when words are selected */}
+      {selectedForPrint.length > 0 && onOpenPrint && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 animate-slide-up border border-slate-700 max-w-[90vw]">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+            <span className="text-xs sm:text-sm font-semibold">
+              Đã chọn <strong className="text-emerald-300 font-mono text-sm sm:text-base">{selectedForPrint.length}/20</strong> từ
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onOpenPrint(selectedForPrint)}
+              className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+            >
+              <Printer className="w-4 h-4" />
+              <span>In {selectedForPrint.length} từ này (2 trang)</span>
+            </button>
+            <button
+              onClick={() => setSelectedForPrint([])}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              title="Bỏ chọn tất cả"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
 
       {/* Edit modal */}
       {editing && (
